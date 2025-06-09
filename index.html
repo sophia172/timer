@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Interval Timer</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⏰</text></svg>">
     <style>
         * {
             margin: 0;
@@ -19,6 +20,7 @@
             align-items: center;
             justify-content: center;
             color: white;
+            overflow-x: hidden;
         }
 
         .container {
@@ -28,8 +30,8 @@
             padding: 2rem;
             box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
             border: 1px solid rgba(255, 255, 255, 0.18);
-            max-width: 500px;
-            width: 90%;
+            max-width: 600px;
+            width: 95%;
             text-align: center;
         }
 
@@ -46,22 +48,54 @@
             margin: 2rem 0;
             text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
             transition: all 0.3s ease;
+            font-family: 'Courier New', monospace;
         }
 
         .timer-display.work {
             color: #4ade80;
+            text-shadow: 0 0 20px rgba(74, 222, 128, 0.5);
         }
 
         .timer-display.break {
             color: #fb7185;
+            text-shadow: 0 0 20px rgba(251, 113, 133, 0.5);
         }
 
         .phase-indicator {
-            font-size: 1.2rem;
+            font-size: 1.3rem;
             margin-bottom: 1rem;
             opacity: 0.9;
             text-transform: uppercase;
             letter-spacing: 2px;
+            font-weight: 600;
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+            color: white;
+            padding: 1rem 2rem;
+            border-radius: 50px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            box-shadow: 0 4px 20px rgba(255, 107, 107, 0.4);
+            z-index: 1000;
+            opacity: 0;
+            transition: all 0.3s ease;
+        }
+
+        .notification.show {
+            opacity: 1;
+            animation: bounce 0.6s ease;
+        }
+
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% { transform: translateX(-50%) translateY(0); }
+            40% { transform: translateX(-50%) translateY(-10px); }
+            60% { transform: translateX(-50%) translateY(-5px); }
         }
 
         .controls-section {
@@ -86,6 +120,10 @@
             margin-bottom: 1rem;
             font-size: 1.1rem;
             opacity: 0.9;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
         }
 
         .wheel-container {
@@ -106,14 +144,8 @@
             justify-content: center;
             font-size: 1.2rem;
             font-weight: bold;
-            cursor: pointer;
+            font-family: 'Courier New', monospace;
             transition: all 0.3s ease;
-            position: relative;
-        }
-
-        .wheel:hover {
-            background: rgba(255, 255, 255, 0.2);
-            transform: scale(1.05);
         }
 
         .wheel-controls {
@@ -131,12 +163,18 @@
             border-radius: 50%;
             cursor: pointer;
             font-size: 1rem;
+            font-weight: bold;
             transition: all 0.2s ease;
         }
 
-        .wheel-btn:hover {
+        .wheel-btn:hover:not(:disabled) {
             background: rgba(255, 255, 255, 0.3);
             transform: scale(1.1);
+        }
+
+        .wheel-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
         }
 
         .main-controls {
@@ -144,6 +182,7 @@
             gap: 1rem;
             justify-content: center;
             margin: 2rem 0;
+            flex-wrap: wrap;
         }
 
         .btn {
@@ -156,6 +195,13 @@
             transition: all 0.3s ease;
             text-transform: uppercase;
             letter-spacing: 1px;
+            min-width: 120px;
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none !important;
         }
 
         .btn-primary {
@@ -164,7 +210,7 @@
             box-shadow: 0 4px 15px rgba(74, 222, 128, 0.4);
         }
 
-        .btn-primary:hover {
+        .btn-primary:hover:not(:disabled) {
             transform: translateY(-2px);
             box-shadow: 0 6px 20px rgba(74, 222, 128, 0.6);
         }
@@ -175,7 +221,7 @@
             box-shadow: 0 4px 15px rgba(245, 158, 11, 0.4);
         }
 
-        .btn-secondary:hover {
+        .btn-secondary:hover:not(:disabled) {
             transform: translateY(-2px);
             box-shadow: 0 6px 20px rgba(245, 158, 11, 0.6);
         }
@@ -186,35 +232,43 @@
             box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);
         }
 
-        .btn-danger:hover {
+        .btn-danger:hover:not(:disabled) {
             transform: translateY(-2px);
             box-shadow: 0 6px 20px rgba(239, 68, 68, 0.6);
         }
 
         .stats {
             margin-top: 2rem;
-            padding: 1rem;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+        }
+
+        .stat-card {
             background: rgba(255, 255, 255, 0.1);
             border-radius: 15px;
+            padding: 1rem;
             border: 1px solid rgba(255, 255, 255, 0.2);
+            text-align: center;
         }
 
-        .stats h3 {
+        .stat-card h3 {
             margin-bottom: 0.5rem;
             opacity: 0.9;
+            font-size: 0.9rem;
         }
 
-        .loop-count {
-            font-size: 2rem;
+        .stat-value {
+            font-size: 1.8rem;
             font-weight: bold;
             color: #60a5fa;
         }
 
         .progress-bar {
             width: 100%;
-            height: 8px;
+            height: 10px;
             background: rgba(255, 255, 255, 0.2);
-            border-radius: 4px;
+            border-radius: 5px;
             margin: 1rem 0;
             overflow: hidden;
         }
@@ -222,8 +276,25 @@
         .progress-fill {
             height: 100%;
             background: linear-gradient(90deg, #4ade80, #22c55e);
-            border-radius: 4px;
-            transition: width 1s linear;
+            border-radius: 5px;
+            transition: width 1s ease;
+            position: relative;
+        }
+
+        .progress-fill::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            animation: shimmer 2s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
         }
 
         @keyframes pulse {
@@ -254,12 +325,33 @@
                 width: 100%;
                 max-width: 200px;
             }
+
+            .container {
+                padding: 1.5rem;
+            }
+
+            h1 {
+                font-size: 2rem;
+            }
+        }
+
+        .credits {
+            margin-top: 2rem;
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            font-size: 0.9rem;
+            opacity: 0.7;
         }
     </style>
 </head>
 <body>
+    <div class="notification" id="notification">
+        🔔 Phase Complete! 🔔
+    </div>
+
     <div class="container">
-        <h1>Interval Timer</h1>
+        <h1>⏰ Interval Timer</h1>
         
         <div class="phase-indicator" id="phaseIndicator">Ready to Start</div>
         <div class="timer-display" id="timerDisplay">00:00</div>
@@ -271,50 +363,64 @@
         <div class="controls-section">
             <div class="time-controls">
                 <div class="time-control">
-                    <h3>Work Time</h3>
+                    <h3>🔥 Work Time</h3>
                     <div class="wheel-container">
                         <div class="wheel-controls">
-                            <button class="wheel-btn" onclick="adjustTime('work', 'minutes', 1)">+</button>
-                            <button class="wheel-btn" onclick="adjustTime('work', 'minutes', -1)">-</button>
+                            <button class="wheel-btn" onclick="adjustTime('work', 'minutes', 1)" id="workMinUp">+</button>
+                            <button class="wheel-btn" onclick="adjustTime('work', 'minutes', -1)" id="workMinDown">-</button>
                         </div>
                         <div class="wheel" id="workMinutes">50</div>
-                        <span>:</span>
+                        <span style="font-size: 1.5rem; font-weight: bold;">:</span>
                         <div class="wheel" id="workSeconds">00</div>
                         <div class="wheel-controls">
-                            <button class="wheel-btn" onclick="adjustTime('work', 'seconds', 1)">+</button>
-                            <button class="wheel-btn" onclick="adjustTime('work', 'seconds', -1)">-</button>
+                            <button class="wheel-btn" onclick="adjustTime('work', 'seconds', 1)" id="workSecUp">+</button>
+                            <button class="wheel-btn" onclick="adjustTime('work', 'seconds', -1)" id="workSecDown">-</button>
                         </div>
                     </div>
                 </div>
                 
                 <div class="time-control">
-                    <h3>Break Time</h3>
+                    <h3>☕ Break Time</h3>
                     <div class="wheel-container">
                         <div class="wheel-controls">
-                            <button class="wheel-btn" onclick="adjustTime('break', 'minutes', 1)">+</button>
-                            <button class="wheel-btn" onclick="adjustTime('break', 'minutes', -1)">-</button>
+                            <button class="wheel-btn" onclick="adjustTime('break', 'minutes', 1)" id="breakMinUp">+</button>
+                            <button class="wheel-btn" onclick="adjustTime('break', 'minutes', -1)" id="breakMinDown">-</button>
                         </div>
                         <div class="wheel" id="breakMinutes">10</div>
-                        <span>:</span>
+                        <span style="font-size: 1.5rem; font-weight: bold;">:</span>
                         <div class="wheel" id="breakSeconds">00</div>
                         <div class="wheel-controls">
-                            <button class="wheel-btn" onclick="adjustTime('break', 'seconds', 1)">+</button>
-                            <button class="wheel-btn" onclick="adjustTime('break', 'seconds', -1)">-</button>
+                            <button class="wheel-btn" onclick="adjustTime('break', 'seconds', 1)" id="breakSecUp">+</button>
+                            <button class="wheel-btn" onclick="adjustTime('break', 'seconds', -1)" id="breakSecDown">-</button>
                         </div>
                     </div>
                 </div>
             </div>
             
             <div class="main-controls">
-                <button class="btn btn-primary" id="startBtn" onclick="toggleTimer()">Start</button>
-                <button class="btn btn-secondary" id="pauseBtn" onclick="pauseTimer()" style="display: none;">Pause</button>
-                <button class="btn btn-danger" onclick="resetTimer()">Reset</button>
+                <button class="btn btn-primary" id="startBtn" onclick="toggleTimer()">▶️ Start</button>
+                <button class="btn btn-secondary" id="pauseBtn" onclick="pauseTimer()" style="display: none;">⏸️ Pause</button>
+                <button class="btn btn-danger" onclick="resetTimer()">🔄 Reset</button>
             </div>
         </div>
         
         <div class="stats">
-            <h3>Completed Loops</h3>
-            <div class="loop-count" id="loopCount">0</div>
+            <div class="stat-card">
+                <h3>🔁 Completed Loops</h3>
+                <div class="stat-value" id="loopCount">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>🔥 Total Work Time</h3>
+                <div class="stat-value" id="totalWorkTime">0m</div>
+            </div>
+            <div class="stat-card">
+                <h3>☕ Total Break Time</h3>
+                <div class="stat-value" id="totalBreakTime">0m</div>
+            </div>
+        </div>
+
+        <div class="credits">
+            Perfect for Pomodoro Technique • Focus Sessions • Study Breaks • Interval Training
         </div>
     </div>
 
@@ -326,28 +432,60 @@
             timeRemaining: 0,
             totalTime: 0,
             loopCount: 0,
+            totalWorkMinutes: 0,
+            totalBreakMinutes: 0,
             workTime: { minutes: 50, seconds: 0 },
             breakTime: { minutes: 10, seconds: 0 }
         };
 
         let timerInterval;
-        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        let audioContext;
+        let isAudioEnabled = false;
+
+        // Initialize audio context on first user interaction
+        function initAudio() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                isAudioEnabled = true;
+            }
+            if (audioContext.state === 'suspended') {
+                audioContext.resume().then(() => {
+                    isAudioEnabled = true;
+                });
+            }
+        }
 
         function createBeepSound() {
-            const oscillator = audioContext.createOscillator();
-            const gainNode = audioContext.createGain();
+            if (!isAudioEnabled || !audioContext) return;
             
-            oscillator.connect(gainNode);
-            gainNode.connect(audioContext.destination);
+            try {
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+                oscillator.type = 'sine';
+                
+                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.8);
+                
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + 0.8);
+            } catch (error) {
+                console.log('Audio playback failed:', error);
+            }
+        }
+
+        function showNotification(message) {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.classList.add('show');
             
-            oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
-            oscillator.type = 'sine';
-            
-            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
-            
-            oscillator.start(audioContext.currentTime);
-            oscillator.stop(audioContext.currentTime + 0.5);
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
         }
 
         function adjustTime(phase, unit, change) {
@@ -363,6 +501,7 @@
             }
             
             updateTimeDisplay();
+            updateControlsState();
         }
 
         function updateTimeDisplay() {
@@ -370,6 +509,16 @@
             document.getElementById('workSeconds').textContent = String(timerState.workTime.seconds).padStart(2, '0');
             document.getElementById('breakMinutes').textContent = String(timerState.breakTime.minutes).padStart(2, '0');
             document.getElementById('breakSeconds').textContent = String(timerState.breakTime.seconds).padStart(2, '0');
+        }
+
+        function updateControlsState() {
+            const isRunning = timerState.isRunning;
+            const controls = ['workMinUp', 'workMinDown', 'workSecUp', 'workSecDown', 
+                            'breakMinUp', 'breakMinDown', 'breakSecUp', 'breakSecDown'];
+            
+            controls.forEach(id => {
+                document.getElementById(id).disabled = isRunning;
+            });
         }
 
         function formatTime(totalSeconds) {
@@ -387,23 +536,37 @@
             
             if (timerState.isRunning) {
                 if (timerState.currentPhase === 'work') {
-                    indicator.textContent = 'Work Time';
+                    indicator.innerHTML = '🔥 Work Time';
                     display.className = 'timer-display work';
                 } else {
-                    indicator.textContent = 'Break Time';
+                    indicator.innerHTML = '☕ Break Time';
                     display.className = 'timer-display break';
                 }
                 
                 const progress = ((timerState.totalTime - timerState.timeRemaining) / timerState.totalTime) * 100;
-                progressFill.style.width = `${progress}%`;
+                progressFill.style.width = `${Math.min(100, Math.max(0, progress))}%`;
             } else {
-                indicator.textContent = timerState.isPaused ? 'Paused' : 'Ready to Start';
+                indicator.innerHTML = timerState.isPaused ? '⏸️ Paused' : '▶️ Ready to Start';
                 display.className = 'timer-display';
-                progressFill.style.width = '0%';
+                if (!timerState.isPaused) {
+                    progressFill.style.width = '0%';
+                }
             }
+
+            // Update statistics
+            document.getElementById('loopCount').textContent = timerState.loopCount;
+            document.getElementById('totalWorkTime').textContent = timerState.totalWorkMinutes + 'm';
+            document.getElementById('totalBreakTime').textContent = timerState.totalBreakMinutes + 'm';
         }
 
         function switchPhase() {
+            // Add completed time to totals
+            if (timerState.currentPhase === 'work') {
+                timerState.totalWorkMinutes += Math.ceil((timerState.workTime.minutes * 60 + timerState.workTime.seconds) / 60);
+            } else {
+                timerState.totalBreakMinutes += Math.ceil((timerState.breakTime.minutes * 60 + timerState.breakTime.seconds) / 60);
+            }
+
             createBeepSound();
             
             const display = document.getElementById('timerDisplay');
@@ -413,11 +576,12 @@
             if (timerState.currentPhase === 'work') {
                 timerState.currentPhase = 'break';
                 timerState.timeRemaining = timerState.breakTime.minutes * 60 + timerState.breakTime.seconds;
+                showNotification('🔔 Work Complete! Time for a break! ☕');
             } else {
                 timerState.currentPhase = 'work';
                 timerState.timeRemaining = timerState.workTime.minutes * 60 + timerState.workTime.seconds;
                 timerState.loopCount++;
-                document.getElementById('loopCount').textContent = timerState.loopCount;
+                showNotification('🔔 Break Complete! Back to work! 🔥');
             }
             
             timerState.totalTime = timerState.timeRemaining;
@@ -433,6 +597,8 @@
         }
 
         function startTimer() {
+            initAudio(); // Initialize audio on first interaction
+            
             if (!timerState.isPaused) {
                 timerState.currentPhase = 'work';
                 timerState.timeRemaining = timerState.workTime.minutes * 60 + timerState.workTime.seconds;
@@ -455,6 +621,7 @@
             }, 1000);
             
             updateTimerDisplay();
+            updateControlsState();
         }
 
         function pauseTimer() {
@@ -464,9 +631,10 @@
             
             document.getElementById('startBtn').style.display = 'inline-block';
             document.getElementById('pauseBtn').style.display = 'none';
-            document.getElementById('startBtn').textContent = 'Resume';
+            document.getElementById('startBtn').innerHTML = '▶️ Resume';
             
             updateTimerDisplay();
+            updateControlsState();
         }
 
         function stopTimer() {
@@ -476,32 +644,44 @@
             
             document.getElementById('startBtn').style.display = 'inline-block';
             document.getElementById('pauseBtn').style.display = 'none';
-            document.getElementById('startBtn').textContent = 'Start';
+            document.getElementById('startBtn').innerHTML = '▶️ Start';
             
             updateTimerDisplay();
+            updateControlsState();
         }
 
         function resetTimer() {
             stopTimer();
             timerState.loopCount = 0;
+            timerState.totalWorkMinutes = 0;
+            timerState.totalBreakMinutes = 0;
             timerState.currentPhase = 'work';
             timerState.timeRemaining = 0;
             
-            document.getElementById('loopCount').textContent = '0';
-            document.getElementById('startBtn').textContent = 'Start';
+            document.getElementById('startBtn').innerHTML = '▶️ Start';
             updateTimerDisplay();
         }
 
         // Initialize display
         updateTimeDisplay();
         updateTimerDisplay();
+        updateControlsState();
 
-        // Enable audio context on first user interaction
-        document.addEventListener('click', function() {
-            if (audioContext.state === 'suspended') {
-                audioContext.resume();
+        // Keyboard shortcuts
+        document.addEventListener('keydown', function(event) {
+            if (event.code === 'Space') {
+                event.preventDefault();
+                toggleTimer();
+            } else if (event.code === 'Escape') {
+                event.preventDefault();
+                resetTimer();
             }
-        }, { once: true });
+        });
+
+        // Prevent context menu on buttons for better mobile experience
+        document.querySelectorAll('button').forEach(button => {
+            button.addEventListener('contextmenu', e => e.preventDefault());
+        });
     </script>
 </body>
 </html>
