@@ -480,6 +480,10 @@
         let adjustSpeed = 100; // Initial speed in ms
         let minAdjustSpeed = 50; // Fastest speed in ms
         let speedIncreaseRate = 0.9; // How quickly the speed increases (multiplier)
+        let beepInterval;
+        let beepCount = 0;
+        const MAX_BEEPS = 10; // Number of beeps in the sequence
+        const BEEP_INTERVAL = 500; // Time between beeps in ms
 
         // Initialize audio context on first user interaction
         function initAudio() {
@@ -508,13 +512,38 @@
                 oscillator.type = 'sine';
                 
                 gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.8);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
                 
                 oscillator.start(audioContext.currentTime);
-                oscillator.stop(audioContext.currentTime + 0.8);
+                oscillator.stop(audioContext.currentTime + 0.3);
             } catch (error) {
                 console.log('Audio playback failed:', error);
             }
+        }
+
+        function startBeepSequence() {
+            if (beepInterval) {
+                clearInterval(beepInterval);
+            }
+            beepCount = 0;
+            createBeepSound(); // Initial beep
+            
+            beepInterval = setInterval(() => {
+                beepCount++;
+                if (beepCount >= MAX_BEEPS) {
+                    clearInterval(beepInterval);
+                    return;
+                }
+                createBeepSound();
+            }, BEEP_INTERVAL);
+        }
+
+        function stopBeepSequence() {
+            if (beepInterval) {
+                clearInterval(beepInterval);
+                beepInterval = null;
+            }
+            beepCount = 0;
         }
 
         function showNotification(message) {
@@ -654,7 +683,7 @@
                 timerState.totalBreakMinutes += Math.ceil((timerState.breakTime.minutes * 60 + timerState.breakTime.seconds) / 60);
             }
 
-            createBeepSound();
+            startBeepSequence();
             
             const display = document.getElementById('timerDisplay');
             display.classList.add('pulse');
@@ -739,6 +768,7 @@
 
         function resetTimer() {
             stopTimer();
+            stopBeepSequence();
             timerState.loopCount = 0;
             timerState.totalWorkMinutes = 0;
             timerState.totalBreakMinutes = 0;
