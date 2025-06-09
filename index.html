@@ -27,10 +27,10 @@
             background: rgba(255, 255, 255, 0.1);
             backdrop-filter: blur(10px);
             border-radius: 20px;
-            padding: 2rem;
+            padding: 2.5rem;
             box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
             border: 1px solid rgba(255, 255, 255, 0.18);
-            max-width: 600px;
+            max-width: 650px;
             width: 95%;
             text-align: center;
         }
@@ -146,6 +146,32 @@
             font-weight: bold;
             font-family: 'Courier New', monospace;
             transition: all 0.3s ease;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .wheel input {
+            width: 100%;
+            height: 100%;
+            border: none;
+            background: transparent;
+            color: white;
+            font-size: 1.2rem;
+            font-weight: bold;
+            font-family: 'Courier New', monospace;
+            text-align: center;
+            cursor: pointer;
+            outline: none;
+        }
+
+        .wheel input::-webkit-inner-spin-button,
+        .wheel input::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        .wheel input[type=number] {
+            -moz-appearance: textfield;
         }
 
         .wheel-controls {
@@ -328,6 +354,7 @@
 
             .container {
                 padding: 1.5rem;
+                max-width: 95%;
             }
 
             h1 {
@@ -366,15 +393,19 @@
                     <h3>🔥 Work Time</h3>
                     <div class="wheel-container">
                         <div class="wheel-controls">
-                            <button class="wheel-btn" onclick="adjustTime('work', 'minutes', 1)" id="workMinUp">+</button>
-                            <button class="wheel-btn" onclick="adjustTime('work', 'minutes', -1)" id="workMinDown">-</button>
+                            <button class="wheel-btn" onmousedown="startAdjustTime('work', 'minutes', 1)" onmouseup="stopAdjustTime()" onmouseleave="stopAdjustTime()" id="workMinUp">+</button>
+                            <button class="wheel-btn" onmousedown="startAdjustTime('work', 'minutes', -1)" onmouseup="stopAdjustTime()" onmouseleave="stopAdjustTime()" id="workMinDown">-</button>
                         </div>
-                        <div class="wheel" id="workMinutes">50</div>
+                        <div class="wheel" onwheel="handleWheel(event, 'work', 'minutes')">
+                            <input type="number" min="0" max="99" value="50" onchange="handleInputChange(event, 'work', 'minutes')" id="workMinutes">
+                        </div>
                         <span style="font-size: 1.5rem; font-weight: bold;">:</span>
-                        <div class="wheel" id="workSeconds">00</div>
+                        <div class="wheel" onwheel="handleWheel(event, 'work', 'seconds')">
+                            <input type="number" min="0" max="59" value="00" onchange="handleInputChange(event, 'work', 'seconds')" id="workSeconds">
+                        </div>
                         <div class="wheel-controls">
-                            <button class="wheel-btn" onclick="adjustTime('work', 'seconds', 1)" id="workSecUp">+</button>
-                            <button class="wheel-btn" onclick="adjustTime('work', 'seconds', -1)" id="workSecDown">-</button>
+                            <button class="wheel-btn" onmousedown="startAdjustTime('work', 'seconds', 1)" onmouseup="stopAdjustTime()" onmouseleave="stopAdjustTime()" id="workSecUp">+</button>
+                            <button class="wheel-btn" onmousedown="startAdjustTime('work', 'seconds', -1)" onmouseup="stopAdjustTime()" onmouseleave="stopAdjustTime()" id="workSecDown">-</button>
                         </div>
                     </div>
                 </div>
@@ -383,15 +414,19 @@
                     <h3>☕ Break Time</h3>
                     <div class="wheel-container">
                         <div class="wheel-controls">
-                            <button class="wheel-btn" onclick="adjustTime('break', 'minutes', 1)" id="breakMinUp">+</button>
-                            <button class="wheel-btn" onclick="adjustTime('break', 'minutes', -1)" id="breakMinDown">-</button>
+                            <button class="wheel-btn" onmousedown="startAdjustTime('break', 'minutes', 1)" onmouseup="stopAdjustTime()" onmouseleave="stopAdjustTime()" id="breakMinUp">+</button>
+                            <button class="wheel-btn" onmousedown="startAdjustTime('break', 'minutes', -1)" onmouseup="stopAdjustTime()" onmouseleave="stopAdjustTime()" id="breakMinDown">-</button>
                         </div>
-                        <div class="wheel" id="breakMinutes">10</div>
+                        <div class="wheel" onwheel="handleWheel(event, 'break', 'minutes')">
+                            <input type="number" min="0" max="99" value="10" onchange="handleInputChange(event, 'break', 'minutes')" id="breakMinutes">
+                        </div>
                         <span style="font-size: 1.5rem; font-weight: bold;">:</span>
-                        <div class="wheel" id="breakSeconds">00</div>
+                        <div class="wheel" onwheel="handleWheel(event, 'break', 'seconds')">
+                            <input type="number" min="0" max="59" value="00" onchange="handleInputChange(event, 'break', 'seconds')" id="breakSeconds">
+                        </div>
                         <div class="wheel-controls">
-                            <button class="wheel-btn" onclick="adjustTime('break', 'seconds', 1)" id="breakSecUp">+</button>
-                            <button class="wheel-btn" onclick="adjustTime('break', 'seconds', -1)" id="breakSecDown">-</button>
+                            <button class="wheel-btn" onmousedown="startAdjustTime('break', 'seconds', 1)" onmouseup="stopAdjustTime()" onmouseleave="stopAdjustTime()" id="breakSecUp">+</button>
+                            <button class="wheel-btn" onmousedown="startAdjustTime('break', 'seconds', -1)" onmouseup="stopAdjustTime()" onmouseleave="stopAdjustTime()" id="breakSecDown">-</button>
                         </div>
                     </div>
                 </div>
@@ -441,6 +476,10 @@
         let timerInterval;
         let audioContext;
         let isAudioEnabled = false;
+        let adjustInterval;
+        let adjustSpeed = 100; // Initial speed in ms
+        let minAdjustSpeed = 50; // Fastest speed in ms
+        let speedIncreaseRate = 0.9; // How quickly the speed increases (multiplier)
 
         // Initialize audio context on first user interaction
         function initAudio() {
@@ -488,6 +527,54 @@
             }, 3000);
         }
 
+        function handleWheel(event, phase, unit) {
+            event.preventDefault();
+            const change = event.deltaY < 0 ? 1 : -1;
+            adjustTime(phase, unit, change);
+        }
+
+        function handleInputChange(event, phase, unit) {
+            const value = parseInt(event.target.value) || 0;
+            const maxValue = unit === 'minutes' ? 99 : 59;
+            const minValue = 0;
+            
+            if (value > maxValue) {
+                event.target.value = maxValue;
+                timerState[phase + 'Time'][unit] = maxValue;
+            } else if (value < minValue) {
+                event.target.value = minValue;
+                timerState[phase + 'Time'][unit] = minValue;
+            } else {
+                timerState[phase + 'Time'][unit] = value;
+            }
+            
+            updateTimeDisplay();
+            updateControlsState();
+        }
+
+        function startAdjustTime(phase, unit, change) {
+            if (timerState.isRunning) return;
+            
+            // Initial adjustment
+            adjustTime(phase, unit, change);
+            
+            // Start interval for continuous adjustment
+            let currentSpeed = adjustSpeed;
+            adjustInterval = setInterval(() => {
+                adjustTime(phase, unit, change);
+                // Increase speed up to a minimum
+                currentSpeed = Math.max(minAdjustSpeed, currentSpeed * speedIncreaseRate);
+                clearInterval(adjustInterval);
+                adjustInterval = setInterval(() => {
+                    adjustTime(phase, unit, change);
+                }, currentSpeed);
+            }, adjustSpeed);
+        }
+
+        function stopAdjustTime() {
+            clearInterval(adjustInterval);
+        }
+
         function adjustTime(phase, unit, change) {
             if (timerState.isRunning) return;
             
@@ -505,10 +592,10 @@
         }
 
         function updateTimeDisplay() {
-            document.getElementById('workMinutes').textContent = String(timerState.workTime.minutes).padStart(2, '0');
-            document.getElementById('workSeconds').textContent = String(timerState.workTime.seconds).padStart(2, '0');
-            document.getElementById('breakMinutes').textContent = String(timerState.breakTime.minutes).padStart(2, '0');
-            document.getElementById('breakSeconds').textContent = String(timerState.breakTime.seconds).padStart(2, '0');
+            document.getElementById('workMinutes').value = String(timerState.workTime.minutes).padStart(2, '0');
+            document.getElementById('workSeconds').value = String(timerState.workTime.seconds).padStart(2, '0');
+            document.getElementById('breakMinutes').value = String(timerState.breakTime.minutes).padStart(2, '0');
+            document.getElementById('breakSeconds').value = String(timerState.breakTime.seconds).padStart(2, '0');
         }
 
         function updateControlsState() {
