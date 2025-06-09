@@ -470,7 +470,8 @@
             totalWorkMinutes: 0,
             totalBreakMinutes: 0,
             workTime: { minutes: 50, seconds: 0 },
-            breakTime: { minutes: 10, seconds: 0 }
+            breakTime: { minutes: 10, seconds: 0 },
+            lastUpdateTime: Date.now() // Add timestamp for tracking
         };
 
         let timerInterval;
@@ -484,8 +485,145 @@
         let beepCount = 0;
         const MAX_BEEPS = 10; // Number of beeps in the sequence
         const BEEP_INTERVAL = 500; // Time between beeps in ms
+        let animationFrameId = null;
 
-        // Initialize audio context on first user interaction
+        // Save timer state to localStorage
+        function saveTimerState() {
+            const stateToSave = {
+                ...timerState,
+                lastUpdateTime: Date.now()
+            };
+            localStorage.setItem('intervalTimerState', JSON.stringify(stateToSave));
+        }
+
+        // Load timer state from localStorage
+        function loadTimerState() {
+            const savedState = localStorage.getItem('intervalTimerState');
+            if (savedState) {
+                const parsedState = JSON.parse(savedState);
+                const timeElapsed = Math.floor((Date.now() - parsedState.lastUpdateTime) / 1000);
+                
+                // Update time remaining based on elapsed time
+                if (parsedState.isRunning && !parsedState.isPaused) {
+                    parsedState.timeRemaining = Math.max(0, parsedState.timeRemaining - timeElapsed);
+                }
+                
+                timerState = parsedState;
+                updateTimeDisplay();
+                updateControlsState();
+                
+                // If timer was running, restart it
+                if (parsedState.isRunning && !parsedState.isPaused) {
+                    startTimer();
+                }
+            }
+        }
+
+        // Initialize timer state on page load
+        window.addEventListener('load', loadTimerState);
+
+        // Save state before page unload
+        window.addEventListener('beforeunload', saveTimerState);
+
+        // Save state periodically while running
+        function startStateSaving() {
+            setInterval(saveTimerState, 1000);
+        }
+
+        function updateTimer() {
+            if (!timerState.isRunning || timerState.isPaused) return;
+
+            const currentTime = Date.now();
+            const elapsedSeconds = Math.floor((currentTime - timerState.lastUpdateTime) / 1000);
+            
+            if (elapsedSeconds >= 1) {
+                timerState.timeRemaining -= elapsedSeconds;
+                timerState.lastUpdateTime = currentTime;
+                
+                updateTimerDisplay();
+                
+                if (timerState.timeRemaining <= 0) {
+                    switchPhase();
+                }
+            }
+            
+            animationFrameId = requestAnimationFrame(updateTimer);
+        }
+
+        function startTimer() {
+            initAudio(); // Initialize audio on first interaction
+            
+            if (!timerState.isPaused) {
+                timerState.currentPhase = 'work';
+                timerState.timeRemaining = timerState.workTime.minutes * 60 + timerState.workTime.seconds;
+                timerState.totalTime = timerState.timeRemaining;
+            }
+            
+            timerState.isRunning = true;
+            timerState.isPaused = false;
+            timerState.lastUpdateTime = Date.now();
+            
+            document.getElementById('startBtn').style.display = 'none';
+            document.getElementById('pauseBtn').style.display = 'inline-block';
+            
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+            }
+            animationFrameId = requestAnimationFrame(updateTimer);
+            
+            updateTimerDisplay();
+            updateControlsState();
+            startStateSaving();
+        }
+
+        function pauseTimer() {
+            timerState.isRunning = false;
+            timerState.isPaused = true;
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+                animationFrameId = null;
+            }
+            
+            document.getElementById('startBtn').style.display = 'inline-block';
+            document.getElementById('pauseBtn').style.display = 'none';
+            document.getElementById('startBtn').innerHTML = '▶️ Resume';
+            
+            updateTimerDisplay();
+            updateControlsState();
+            saveTimerState();
+        }
+
+        function stopTimer() {
+            timerState.isRunning = false;
+            timerState.isPaused = false;
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+                animationFrameId = null;
+            }
+            
+            document.getElementById('startBtn').style.display = 'inline-block';
+            document.getElementById('pauseBtn').style.display = 'none';
+            document.getElementById('startBtn').innerHTML = '▶️ Start';
+            
+            updateTimerDisplay();
+            updateControlsState();
+            saveTimerState();
+        }
+
+        function resetTimer() {
+            stopTimer();
+            stopBeepSequence();
+            timerState.loopCount = 0;
+            timerState.totalWorkMinutes = 0;
+            timerState.totalBreakMinutes = 0;
+            timerState.currentPhase = 'work';
+            timerState.timeRemaining = 0;
+            
+            document.getElementById('startBtn').innerHTML = '▶️ Start';
+            updateTimerDisplay();
+            localStorage.removeItem('intervalTimerState');
+        }
+
         function initAudio() {
             if (!audioContext) {
                 audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -711,78 +849,6 @@
                 startTimer();
             }
         }
-
-        function startTimer() {
-            initAudio(); // Initialize audio on first interaction
-            
-            if (!timerState.isPaused) {
-                timerState.currentPhase = 'work';
-                timerState.timeRemaining = timerState.workTime.minutes * 60 + timerState.workTime.seconds;
-                timerState.totalTime = timerState.timeRemaining;
-            }
-            
-            timerState.isRunning = true;
-            timerState.isPaused = false;
-            
-            document.getElementById('startBtn').style.display = 'none';
-            document.getElementById('pauseBtn').style.display = 'inline-block';
-            
-            timerInterval = setInterval(() => {
-                timerState.timeRemaining--;
-                updateTimerDisplay();
-                
-                if (timerState.timeRemaining <= 0) {
-                    switchPhase();
-                }
-            }, 1000);
-            
-            updateTimerDisplay();
-            updateControlsState();
-        }
-
-        function pauseTimer() {
-            timerState.isRunning = false;
-            timerState.isPaused = true;
-            clearInterval(timerInterval);
-            
-            document.getElementById('startBtn').style.display = 'inline-block';
-            document.getElementById('pauseBtn').style.display = 'none';
-            document.getElementById('startBtn').innerHTML = '▶️ Resume';
-            
-            updateTimerDisplay();
-            updateControlsState();
-        }
-
-        function stopTimer() {
-            timerState.isRunning = false;
-            timerState.isPaused = false;
-            clearInterval(timerInterval);
-            
-            document.getElementById('startBtn').style.display = 'inline-block';
-            document.getElementById('pauseBtn').style.display = 'none';
-            document.getElementById('startBtn').innerHTML = '▶️ Start';
-            
-            updateTimerDisplay();
-            updateControlsState();
-        }
-
-        function resetTimer() {
-            stopTimer();
-            stopBeepSequence();
-            timerState.loopCount = 0;
-            timerState.totalWorkMinutes = 0;
-            timerState.totalBreakMinutes = 0;
-            timerState.currentPhase = 'work';
-            timerState.timeRemaining = 0;
-            
-            document.getElementById('startBtn').innerHTML = '▶️ Start';
-            updateTimerDisplay();
-        }
-
-        // Initialize display
-        updateTimeDisplay();
-        updateTimerDisplay();
-        updateControlsState();
 
         // Keyboard shortcuts
         document.addEventListener('keydown', function(event) {
