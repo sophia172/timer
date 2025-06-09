@@ -1,0 +1,554 @@
+
+Design a web app which i can upload to steamlit and using my own domain to direct to. This web app is a simple beautiful timer which I can set the timer to loop between time A and time B. I can also customise the time A and B with a wheel. For example. it can run timer for 50 mins and run 10 mins and run 50 mins and run 10mins again. The timer gives a gental beep when the time is up. It also calculate how many loops it went through. There is also a reset button to reset everything.
+
+I'll create a beautiful timer web app for you that can loop between two different time periods. This will be perfect for techniques like the Pomodoro method or any work/break intervals.
+
+
+Interval Timer Web App
+Interactive artifact 
+I've created a beautiful interval timer web app with all the features you requested! Here's what it includes:
+
+Key Features:
+
+Customizable Time Wheels: Set both work time (Time A) and break time (Time B) using intuitive +/- buttons
+Automatic Looping: Alternates between work and break periods continuously
+Gentle Beep Sound: Plays a soft beep when each timer period ends
+Loop Counter: Tracks how many complete work/break cycles you've completed
+Progress Bar: Visual indicator of current timer progress
+Modern Design: Beautiful glassmorphism design with smooth animations
+Controls:
+
+Start/Resume/Pause: Main control button that changes based on timer state
+Reset: Resets everything back to initial state
+Time Adjustment: Use +/- buttons to adjust minutes and seconds for both work and break periods
+Default Settings:
+
+Work time: 50 minutes (perfect for focused work sessions)
+Break time: 10 minutes (ideal rest period)
+How to Deploy:
+
+Save this HTML file (e.g., as timer.html)
+Upload it to Streamlit or any web hosting service
+Point your domain to the hosted file
+The timer includes responsive design for mobile devices and uses Web Audio API for the gentle beep sound. The interface is intuitive and perfect for productivity techniques like Pomodoro or any custom work/break intervals you prefer!
+
+
+
+
+I want to deploy this app on streamlit.
+
+I'll help you convert this web app to work with Streamlit. Streamlit uses Python and has its own way of handling HTML/JavaScript, so I'll create a Python version that you can deploy directly to Streamlit.
+
+
+Streamlit Interval Timer App
+Code 
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interval Timer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            max-width: 500px;
+            width: 90%;
+            text-align: center;
+        }
+
+        h1 {
+            margin-bottom: 2rem;
+            font-size: 2.5rem;
+            font-weight: 300;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .timer-display {
+            font-size: 4rem;
+            font-weight: bold;
+            margin: 2rem 0;
+            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s ease;
+        }
+
+        .timer-display.work {
+            color: #4ade80;
+        }
+
+        .timer-display.break {
+            color: #fb7185;
+        }
+
+        .phase-indicator {
+            font-size: 1.2rem;
+            margin-bottom: 1rem;
+            opacity: 0.9;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .controls-section {
+            margin: 2rem 0;
+        }
+
+        .time-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .time-control {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 1.5rem;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .time-control h3 {
+            margin-bottom: 1rem;
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .wheel-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .wheel {
+            width: 60px;
+            height: 60px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .wheel:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: scale(1.05);
+        }
+
+        .wheel-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .wheel-btn {
+            width: 30px;
+            height: 30px;
+            border: none;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.2s ease;
+        }
+
+        .wheel-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: scale(1.1);
+        }
+
+        .main-controls {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            margin: 2rem 0;
+        }
+
+        .btn {
+            padding: 1rem 2rem;
+            border: none;
+            border-radius: 50px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(45deg, #4ade80, #22c55e);
+            color: white;
+            box-shadow: 0 4px 15px rgba(74, 222, 128, 0.4);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(74, 222, 128, 0.6);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(45deg, #f59e0b, #d97706);
+            color: white;
+            box-shadow: 0 4px 15px rgba(245, 158, 11, 0.4);
+        }
+
+        .btn-secondary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(245, 158, 11, 0.6);
+        }
+
+        .btn-danger {
+            background: linear-gradient(45deg, #ef4444, #dc2626);
+            color: white;
+            box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);
+        }
+
+        .btn-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(239, 68, 68, 0.6);
+        }
+
+        .stats {
+            margin-top: 2rem;
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .stats h3 {
+            margin-bottom: 0.5rem;
+            opacity: 0.9;
+        }
+
+        .loop-count {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #60a5fa;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+            margin: 1rem 0;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4ade80, #22c55e);
+            border-radius: 4px;
+            transition: width 1s linear;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .timer-display.pulse {
+            animation: pulse 1s infinite;
+        }
+
+        @media (max-width: 600px) {
+            .time-controls {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+            
+            .timer-display {
+                font-size: 3rem;
+            }
+            
+            .main-controls {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .btn {
+                width: 100%;
+                max-width: 200px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Interval Timer</h1>
+        
+        <div class="phase-indicator" id="phaseIndicator">Ready to Start</div>
+        <div class="timer-display" id="timerDisplay">00:00</div>
+        
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+        </div>
+        
+        <div class="controls-section">
+            <div class="time-controls">
+                <div class="time-control">
+                    <h3>Work Time</h3>
+                    <div class="wheel-container">
+                        <div class="wheel-controls">
+                            <button class="wheel-btn" onclick="adjustTime('work', 'minutes', 1)">+</button>
+                            <button class="wheel-btn" onclick="adjustTime('work', 'minutes', -1)">-</button>
+                        </div>
+                        <div class="wheel" id="workMinutes">50</div>
+                        <span>:</span>
+                        <div class="wheel" id="workSeconds">00</div>
+                        <div class="wheel-controls">
+                            <button class="wheel-btn" onclick="adjustTime('work', 'seconds', 1)">+</button>
+                            <button class="wheel-btn" onclick="adjustTime('work', 'seconds', -1)">-</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="time-control">
+                    <h3>Break Time</h3>
+                    <div class="wheel-container">
+                        <div class="wheel-controls">
+                            <button class="wheel-btn" onclick="adjustTime('break', 'minutes', 1)">+</button>
+                            <button class="wheel-btn" onclick="adjustTime('break', 'minutes', -1)">-</button>
+                        </div>
+                        <div class="wheel" id="breakMinutes">10</div>
+                        <span>:</span>
+                        <div class="wheel" id="breakSeconds">00</div>
+                        <div class="wheel-controls">
+                            <button class="wheel-btn" onclick="adjustTime('break', 'seconds', 1)">+</button>
+                            <button class="wheel-btn" onclick="adjustTime('break', 'seconds', -1)">-</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="main-controls">
+                <button class="btn btn-primary" id="startBtn" onclick="toggleTimer()">Start</button>
+                <button class="btn btn-secondary" id="pauseBtn" onclick="pauseTimer()" style="display: none;">Pause</button>
+                <button class="btn btn-danger" onclick="resetTimer()">Reset</button>
+            </div>
+        </div>
+        
+        <div class="stats">
+            <h3>Completed Loops</h3>
+            <div class="loop-count" id="loopCount">0</div>
+        </div>
+    </div>
+
+    <script>
+        let timerState = {
+            isRunning: false,
+            isPaused: false,
+            currentPhase: 'work', // 'work' or 'break'
+            timeRemaining: 0,
+            totalTime: 0,
+            loopCount: 0,
+            workTime: { minutes: 50, seconds: 0 },
+            breakTime: { minutes: 10, seconds: 0 }
+        };
+
+        let timerInterval;
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+        function createBeepSound() {
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+            oscillator.type = 'sine';
+            
+            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.5);
+        }
+
+        function adjustTime(phase, unit, change) {
+            if (timerState.isRunning) return;
+            
+            const timeObj = timerState[phase + 'Time'];
+            timeObj[unit] += change;
+            
+            if (unit === 'minutes') {
+                timeObj.minutes = Math.max(0, Math.min(99, timeObj.minutes));
+            } else {
+                timeObj.seconds = Math.max(0, Math.min(59, timeObj.seconds));
+            }
+            
+            updateTimeDisplay();
+        }
+
+        function updateTimeDisplay() {
+            document.getElementById('workMinutes').textContent = String(timerState.workTime.minutes).padStart(2, '0');
+            document.getElementById('workSeconds').textContent = String(timerState.workTime.seconds).padStart(2, '0');
+            document.getElementById('breakMinutes').textContent = String(timerState.breakTime.minutes).padStart(2, '0');
+            document.getElementById('breakSeconds').textContent = String(timerState.breakTime.seconds).padStart(2, '0');
+        }
+
+        function formatTime(totalSeconds) {
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = totalSeconds % 60;
+            return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+        }
+
+        function updateTimerDisplay() {
+            const display = document.getElementById('timerDisplay');
+            const indicator = document.getElementById('phaseIndicator');
+            const progressFill = document.getElementById('progressFill');
+            
+            display.textContent = formatTime(timerState.timeRemaining);
+            
+            if (timerState.isRunning) {
+                if (timerState.currentPhase === 'work') {
+                    indicator.textContent = 'Work Time';
+                    display.className = 'timer-display work';
+                } else {
+                    indicator.textContent = 'Break Time';
+                    display.className = 'timer-display break';
+                }
+                
+                const progress = ((timerState.totalTime - timerState.timeRemaining) / timerState.totalTime) * 100;
+                progressFill.style.width = `${progress}%`;
+            } else {
+                indicator.textContent = timerState.isPaused ? 'Paused' : 'Ready to Start';
+                display.className = 'timer-display';
+                progressFill.style.width = '0%';
+            }
+        }
+
+        function switchPhase() {
+            createBeepSound();
+            
+            const display = document.getElementById('timerDisplay');
+            display.classList.add('pulse');
+            setTimeout(() => display.classList.remove('pulse'), 2000);
+            
+            if (timerState.currentPhase === 'work') {
+                timerState.currentPhase = 'break';
+                timerState.timeRemaining = timerState.breakTime.minutes * 60 + timerState.breakTime.seconds;
+            } else {
+                timerState.currentPhase = 'work';
+                timerState.timeRemaining = timerState.workTime.minutes * 60 + timerState.workTime.seconds;
+                timerState.loopCount++;
+                document.getElementById('loopCount').textContent = timerState.loopCount;
+            }
+            
+            timerState.totalTime = timerState.timeRemaining;
+            updateTimerDisplay();
+        }
+
+        function toggleTimer() {
+            if (timerState.isRunning) {
+                stopTimer();
+            } else {
+                startTimer();
+            }
+        }
+
+        function startTimer() {
+            if (!timerState.isPaused) {
+                timerState.currentPhase = 'work';
+                timerState.timeRemaining = timerState.workTime.minutes * 60 + timerState.workTime.seconds;
+                timerState.totalTime = timerState.timeRemaining;
+            }
+            
+            timerState.isRunning = true;
+            timerState.isPaused = false;
+            
+            document.getElementById('startBtn').style.display = 'none';
+            document.getElementById('pauseBtn').style.display = 'inline-block';
+            
+            timerInterval = setInterval(() => {
+                timerState.timeRemaining--;
+                updateTimerDisplay();
+                
+                if (timerState.timeRemaining <= 0) {
+                    switchPhase();
+                }
+            }, 1000);
+            
+            updateTimerDisplay();
+        }
+
+        function pauseTimer() {
+            timerState.isRunning = false;
+            timerState.isPaused = true;
+            clearInterval(timerInterval);
+            
+            document.getElementById('startBtn').style.display = 'inline-block';
+            document.getElementById('pauseBtn').style.display = 'none';
+            document.getElementById('startBtn').textContent = 'Resume';
+            
+            updateTimerDisplay();
+        }
+
+        function stopTimer() {
+            timerState.isRunning = false;
+            timerState.isPaused = false;
+            clearInterval(timerInterval);
+            
+            document.getElementById('startBtn').style.display = 'inline-block';
+            document.getElementById('pauseBtn').style.display = 'none';
+            document.getElementById('startBtn').textContent = 'Start';
+            
+            updateTimerDisplay();
+        }
+
+        function resetTimer() {
+            stopTimer();
+            timerState.loopCount = 0;
+            timerState.currentPhase = 'work';
+            timerState.timeRemaining = 0;
+            
+            document.getElementById('loopCount').textContent = '0';
+            document.getElementById('startBtn').textContent = 'Start';
+            updateTimerDisplay();
+        }
+
+        // Initialize display
+        updateTimeDisplay();
+        updateTimerDisplay();
+
+        // Enable audio context on first user interaction
+        document.addEventListener('click', function() {
+            if (audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+        }, { once: true });
+    </script>
+</body>
+</html>
