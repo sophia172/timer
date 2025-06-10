@@ -487,6 +487,7 @@
         const MAX_BEEPS = 10; // Number of beeps in the sequence
         const BEEP_INTERVAL = 500; // Time between beeps in ms
         let animationFrameId = null;
+        let deviceIP = null;
 
         // Background Music State
         const musicState = {
@@ -576,18 +577,58 @@
             }
         }
 
-        // Save timer state to localStorage
-        function saveTimerState() {
+        // Get IP address
+        async function getIPAddress() {
+            try {
+                const response = await fetch('https://api.ipify.org?format=json');
+                const data = await response.json();
+                return data.ip;
+            } catch (error) {
+                console.error('Error fetching IP:', error);
+                return 'unknown';
+            }
+        }
+
+        // Device ID generation
+        async function generateDeviceId() {
+            if (!deviceIP) {
+                deviceIP = await getIPAddress();
+            }
+            
+            const components = [
+                deviceIP,
+                navigator.userAgent,
+                navigator.language,
+                navigator.platform,
+                screen.width + 'x' + screen.height,
+                new Date().getTimezoneOffset()
+            ];
+            
+            // Create a hash of the components
+            let hash = 0;
+            const str = components.join('|');
+            for (let i = 0; i < str.length; i++) {
+                const char = str.charCodeAt(i);
+                hash = ((hash << 5) - hash) + char;
+                hash = hash & hash;
+            }
+            return 'timer_' + Math.abs(hash).toString(36);
+        }
+
+        // Save timer state to localStorage with device-specific key
+        async function saveTimerState() {
+            const deviceId = await generateDeviceId();
             const stateToSave = {
                 ...timerState,
                 lastUpdateTime: Date.now()
             };
-            localStorage.setItem('intervalTimerState', JSON.stringify(stateToSave));
+            localStorage.setItem(deviceId, JSON.stringify(stateToSave));
         }
 
-        // Load timer state from localStorage
-        function loadTimerState() {
-            const savedState = localStorage.getItem('intervalTimerState');
+        // Load timer state from localStorage with device-specific key
+        async function loadTimerState() {
+            const deviceId = await generateDeviceId();
+            const savedState = localStorage.getItem(deviceId);
             if (savedState) {
                 const parsedState = JSON.parse(savedState);
                 const timeElapsed = Math.floor((Date.now() - parsedState.lastUpdateTime) / 1000);
@@ -608,18 +649,22 @@
             }
         }
 
-        // Initialize timer state on page load
-        window.addEventListener('load', () => {
-            loadTimerState();
+        // Initialize everything when the page loads
+        window.addEventListener('load', async () => {
+            await loadTimerState();
             initBackgroundMusic();
         });
 
         // Save state before page unload
-        window.addEventListener('beforeunload', saveTimerState);
+        window.addEventListener('beforeunload', async () => {
+            await saveTimerState();
+        });
 
         // Save state periodically while running
-        function startStateSaving() {
-            setInterval(saveTimerState, 1000);
+        async function startStateSaving() {
+            setInterval(async () => {
+                await saveTimerState();
+            }, 1000);
         }
 
         function updateTimer() {
@@ -713,7 +758,10 @@
             
             document.getElementById('startBtn').innerHTML = '▶️ Start';
             updateTimerDisplay();
-            localStorage.removeItem('intervalTimerState');
+            
+            // Remove only this device's timer state
+            const deviceId = await generateDeviceId();
+            localStorage.removeItem(deviceId);
         }
 
         function initAudio() {
