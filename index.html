@@ -616,54 +616,59 @@
         }
 
         // Save timer state to localStorage with device-specific key
-        async function saveTimerState() {
-            const deviceId = await generateDeviceId();
-            const stateToSave = {
-                ...timerState,
-                lastUpdateTime: Date.now()
-            };
-            localStorage.setItem(deviceId, JSON.stringify(stateToSave));
+        function saveTimerState() {
+            generateDeviceId().then(deviceId => {
+                const stateToSave = {
+                    ...timerState,
+                    lastUpdateTime: Date.now()
+                };
+                localStorage.setItem(deviceId, JSON.stringify(stateToSave));
+            });
         }
 
         // Load timer state from localStorage with device-specific key
-        async function loadTimerState() {
-            const deviceId = await generateDeviceId();
-            const savedState = localStorage.getItem(deviceId);
-            if (savedState) {
-                const parsedState = JSON.parse(savedState);
-                const timeElapsed = Math.floor((Date.now() - parsedState.lastUpdateTime) / 1000);
-                
-                // Update time remaining based on elapsed time
-                if (parsedState.isRunning && !parsedState.isPaused) {
-                    parsedState.timeRemaining = Math.max(0, parsedState.timeRemaining - timeElapsed);
+        function loadTimerState() {
+            return generateDeviceId().then(deviceId => {
+                const savedState = localStorage.getItem(deviceId);
+                if (savedState) {
+                    const parsedState = JSON.parse(savedState);
+                    const timeElapsed = Math.floor((Date.now() - parsedState.lastUpdateTime) / 1000);
+                    
+                    // Update time remaining based on elapsed time
+                    if (parsedState.isRunning && !parsedState.isPaused) {
+                        parsedState.timeRemaining = Math.max(0, parsedState.timeRemaining - timeElapsed);
+                    }
+                    
+                    timerState = parsedState;
+                    updateTimeDisplay();
+                    updateControlsState();
+                    
+                    // If timer was running, restart it
+                    if (parsedState.isRunning && !parsedState.isPaused) {
+                        startTimer();
+                    }
                 }
-                
-                timerState = parsedState;
-                updateTimeDisplay();
-                updateControlsState();
-                
-                // If timer was running, restart it
-                if (parsedState.isRunning && !parsedState.isPaused) {
-                    startTimer();
-                }
-            }
+            });
         }
 
         // Initialize everything when the page loads
-        window.addEventListener('load', async () => {
-            await loadTimerState();
-            initBackgroundMusic();
+        window.addEventListener('load', () => {
+            // Load timer state first
+            loadTimerState().then(() => {
+                // Then initialize background music
+                initBackgroundMusic();
+            });
         });
 
         // Save state before page unload
-        window.addEventListener('beforeunload', async () => {
-            await saveTimerState();
+        window.addEventListener('beforeunload', () => {
+            saveTimerState();
         });
 
         // Save state periodically while running
-        async function startStateSaving() {
-            setInterval(async () => {
-                await saveTimerState();
+        function startStateSaving() {
+            setInterval(() => {
+                saveTimerState();
             }, 1000);
         }
 
@@ -711,6 +716,11 @@
             updateTimerDisplay();
             updateControlsState();
             startStateSaving();
+
+            // Start background music if in work phase
+            if (timerState.currentPhase === 'work') {
+                toggleBackgroundMusic(true);
+            }
         }
 
         function pauseTimer() {
@@ -760,8 +770,9 @@
             updateTimerDisplay();
             
             // Remove only this device's timer state
-            const deviceId = await generateDeviceId();
-            localStorage.removeItem(deviceId);
+            generateDeviceId().then(deviceId => {
+                localStorage.removeItem(deviceId);
+            });
         }
 
         function initAudio() {
