@@ -104,10 +104,9 @@
 
         .time-controls {
             display: grid;
-            grid-template-columns: 1fr auto 1fr;
-            gap: 1rem;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
             margin-bottom: 2rem;
-            align-items: center;
         }
 
         .time-control {
@@ -125,33 +124,6 @@
             align-items: center;
             justify-content: center;
             gap: 0.5rem;
-        }
-
-        .swap-button {
-            width: 60px;
-            height: 60px;
-            border: none;
-            background: linear-gradient(45deg, #8b5cf6, #a855f7);
-            color: white;
-            border-radius: 50%;
-            cursor: pointer;
-            font-size: 1.5rem;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(139, 92, 246, 0.4);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .swap-button:hover:not(:disabled) {
-            transform: rotate(180deg) scale(1.1);
-            box-shadow: 0 6px 20px rgba(139, 92, 246, 0.6);
-        }
-
-        .swap-button:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            transform: none !important;
         }
 
         .wheel-container {
@@ -366,11 +338,6 @@
                 gap: 1rem;
             }
             
-            .swap-button {
-                order: -1;
-                margin-bottom: 1rem;
-            }
-            
             .timer-display {
                 font-size: 3rem;
             }
@@ -422,46 +389,44 @@
         
         <div class="controls-section">
             <div class="time-controls">
-                <div class="time-control" id="leftTimer">
-                    <h3 id="leftTimerLabel">🔥 Work Time</h3>
+                <div class="time-control">
+                    <h3>🔥 Work Time</h3>
                     <div class="wheel-container">
                         <div class="wheel-controls">
-                            <button class="wheel-btn" onmousedown="startAdjustTime('left', 'minutes', 1)" onmouseup="stopAdjustTime()" onmouseleave="stopAdjustTime()" id="leftMinUp">+</button>
-                            <button class="wheel-btn" onmousedown="startAdjustTime('left', 'minutes', -1)" onmouseup="stopAdjustTime()" onmouseleave="stopAdjustTime()" id="leftMinDown">-</button>
+                            <button class="wheel-btn" onmousedown="startAdjustTime('work', 'minutes', 1)" onmouseup="stopAdjustTime()" onmouseleave="stopAdjustTime()" id="workMinUp">+</button>
+                            <button class="wheel-btn" onmousedown="startAdjustTime('work', 'minutes', -1)" onmouseup="stopAdjustTime()" onmouseleave="stopAdjustTime()" id="workMinDown">-</button>
                         </div>
-                        <div class="wheel" onwheel="handleWheel(event, 'left', 'minutes')">
-                            <input type="number" min="0" max="99" value="50" onchange="handleInputChange(event, 'left', 'minutes')" id="leftMinutes">
+                        <div class="wheel" onwheel="handleWheel(event, 'work', 'minutes')">
+                            <input type="number" min="0" max="99" value="50" onchange="handleInputChange(event, 'work', 'minutes')" id="workMinutes">
                         </div>
                         <span style="font-size: 1.5rem; font-weight: bold;">:</span>
-                        <div class="wheel" onwheel="handleWheel(event, 'left', 'seconds')">
-                            <input type="number" min="0" max="59" value="00" onchange="handleInputChange(event, 'left', 'seconds')" id="leftSeconds">
+                        <div class="wheel" onwheel="handleWheel(event, 'work', 'seconds')">
+                            <input type="number" min="0" max="59" value="00" onchange="handleInputChange(event, 'work', 'seconds')" id="workSeconds">
                         </div>
                         <div class="wheel-controls">
-                            <button class="wheel-btn" onmousedown="startAdjustTime('left', 'seconds', 1)" onmouseup="stopAdjustTime()" onmouseleave="stopAdjustTime()" id="leftSecUp">+</button>
-                            <button class="wheel-btn" onmousedown="startAdjustTime('left', 'seconds', -1)" onmouseup="stopAdjustTime()" onmouseleave="stopAdjustTime()" id="leftSecDown">-</button>
+                            <button class="wheel-btn" onmousedown="startAdjustTime('work', 'seconds', 1)" onmouseup="stopAdjustTime()" onmouseleave="stopAdjustTime()" id="workSecUp">+</button>
+                            <button class="wheel-btn" onmousedown="startAdjustTime('work', 'seconds', -1)" onmouseup="stopAdjustTime()" onmouseleave="stopAdjustTime()" id="workSecDown">-</button>
                         </div>
                     </div>
                 </div>
                 
-                <button class="swap-button" onclick="swapTimers()" id="swapBtn" title="Swap timers">⇄</button>
-                
-                <div class="time-control" id="rightTimer">
-                    <h3 id="rightTimerLabel">☕ Break Time</h3>
+                <div class="time-control">
+                    <h3>☕ Break Time</h3>
                     <div class="wheel-container">
                         <div class="wheel-controls">
-                            <button class="wheel-btn" onmousedown="startAdjustTime('right', 'minutes', 1)" onmouseup="stopAdjustTime()" onmouseleave="stopAdjustTime()" id="rightMinUp">+</button>
-                            <button class="wheel-btn" onmousedown="startAdjustTime('right', 'minutes', -1)" onmouseup="stopAdjustTime()" onmouseleave="stopAdjustTime()" id="rightMinDown">-</button>
+                            <button class="wheel-btn" onmousedown="startAdjustTime('break', 'minutes', 1)" onmouseup="stopAdjustTime()" onmouseleave="stopAdjustTime()" id="breakMinUp">+</button>
+                            <button class="wheel-btn" onmousedown="startAdjustTime('break', 'minutes', -1)" onmouseup="stopAdjustTime()" onmouseleave="stopAdjustTime()" id="breakMinDown">-</button>
                         </div>
-                        <div class="wheel" onwheel="handleWheel(event, 'right', 'minutes')">
-                            <input type="number" min="0" max="99" value="10" onchange="handleInputChange(event, 'right', 'minutes')" id="rightMinutes">
+                        <div class="wheel" onwheel="handleWheel(event, 'break', 'minutes')">
+                            <input type="number" min="0" max="99" value="10" onchange="handleInputChange(event, 'break', 'minutes')" id="breakMinutes">
                         </div>
                         <span style="font-size: 1.5rem; font-weight: bold;">:</span>
-                        <div class="wheel" onwheel="handleWheel(event, 'right', 'seconds')">
-                            <input type="number" min="0" max="59" value="00" onchange="handleInputChange(event, 'right', 'seconds')" id="rightSeconds">
+                        <div class="wheel" onwheel="handleWheel(event, 'break', 'seconds')">
+                            <input type="number" min="0" max="59" value="00" onchange="handleInputChange(event, 'break', 'seconds')" id="breakSeconds">
                         </div>
                         <div class="wheel-controls">
-                            <button class="wheel-btn" onmousedown="startAdjustTime('right', 'seconds', 1)" onmouseup="stopAdjustTime()" onmouseleave="stopAdjustTime()" id="rightSecUp">+</button>
-                            <button class="wheel-btn" onmousedown="startAdjustTime('right', 'seconds', -1)" onmouseup="stopAdjustTime()" onmouseleave="stopAdjustTime()" id="rightSecDown">-</button>
+                            <button class="wheel-btn" onmousedown="startAdjustTime('break', 'seconds', 1)" onmouseup="stopAdjustTime()" onmouseleave="stopAdjustTime()" id="breakSecUp">+</button>
+                            <button class="wheel-btn" onmousedown="startAdjustTime('break', 'seconds', -1)" onmouseup="stopAdjustTime()" onmouseleave="stopAdjustTime()" id="breakSecDown">-</button>
                         </div>
                     </div>
                 </div>
@@ -498,78 +463,31 @@
         let timerState = {
             isRunning: false,
             isPaused: false,
-            currentPhase: 'left',
+            currentPhase: 'work', // 'work' or 'break'
             timeRemaining: 0,
             totalTime: 0,
             loopCount: 0,
             totalWorkMinutes: 0,
             totalBreakMinutes: 0,
-            leftTime: { minutes: 50, seconds: 0 },
-            rightTime: { minutes: 10, seconds: 0 },
-            leftIsWork: true,
-            lastUpdateTime: Date.now()
+            workTime: { minutes: 50, seconds: 0 },
+            breakTime: { minutes: 10, seconds: 0 },
+            lastUpdateTime: Date.now() // Add timestamp for tracking
         };
 
         let timerInterval;
         let audioContext;
         let isAudioEnabled = false;
         let adjustInterval;
-        let adjustSpeed = 100;
-        let minAdjustSpeed = 50;
-        let speedIncreaseRate = 0.9;
+        let adjustSpeed = 100; // Initial speed in ms
+        let minAdjustSpeed = 50; // Fastest speed in ms
+        let speedIncreaseRate = 0.9; // How quickly the speed increases (multiplier)
         let beepInterval;
         let beepCount = 0;
-        const MAX_BEEPS = 10;
-        const BEEP_INTERVAL = 500;
+        const MAX_BEEPS = 10; // Number of beeps in the sequence
+        const BEEP_INTERVAL = 500; // Time between beeps in ms
         let animationFrameId = null;
 
-        function swapTimers() {
-            if (timerState.isRunning && !timerState.isPaused) return;
-            
-            // Swap the time values
-            const tempTime = { ...timerState.leftTime };
-            timerState.leftTime = { ...timerState.rightTime };
-            timerState.rightTime = tempTime;
-            
-            // Toggle which side is work/break
-            timerState.leftIsWork = !timerState.leftIsWork;
-            
-            // Update UI labels
-            updateTimerLabels();
-            updateTimeDisplay();
-            
-            // If paused, update the remaining time for current phase
-            if (timerState.isPaused) {
-                const currentTime = timerState.currentPhase === 'left' ? timerState.leftTime : timerState.rightTime;
-                timerState.timeRemaining = currentTime.minutes * 60 + currentTime.seconds;
-                timerState.totalTime = timerState.timeRemaining;
-                updateTimerDisplay();
-            }
-            
-            saveTimerState();
-        }
-
-        function updateTimerLabels() {
-            const leftLabel = document.getElementById('leftTimerLabel');
-            const rightLabel = document.getElementById('rightTimerLabel');
-            
-            if (timerState.leftIsWork) {
-                leftLabel.innerHTML = '🔥 Work Time';
-                rightLabel.innerHTML = '☕ Break Time';
-            } else {
-                leftLabel.innerHTML = '☕ Break Time';
-                rightLabel.innerHTML = '🔥 Work Time';
-            }
-        }
-
-        function getCurrentPhaseType() {
-            if (timerState.currentPhase === 'left') {
-                return timerState.leftIsWork ? 'work' : 'break';
-            } else {
-                return timerState.leftIsWork ? 'break' : 'work';
-            }
-        }
-
+        // Save timer state to localStorage
         function saveTimerState() {
             const stateToSave = {
                 ...timerState,
@@ -578,32 +496,36 @@
             localStorage.setItem('intervalTimerState', JSON.stringify(stateToSave));
         }
 
+        // Load timer state from localStorage
         function loadTimerState() {
             const savedState = localStorage.getItem('intervalTimerState');
             if (savedState) {
                 const parsedState = JSON.parse(savedState);
                 const timeElapsed = Math.floor((Date.now() - parsedState.lastUpdateTime) / 1000);
                 
+                // Update time remaining based on elapsed time
                 if (parsedState.isRunning && !parsedState.isPaused) {
                     parsedState.timeRemaining = Math.max(0, parsedState.timeRemaining - timeElapsed);
                 }
                 
                 timerState = parsedState;
-                updateTimerLabels();
                 updateTimeDisplay();
                 updateControlsState();
                 
+                // If timer was running, restart it
                 if (parsedState.isRunning && !parsedState.isPaused) {
                     startTimer();
                 }
-            } else {
-                updateTimerLabels();
             }
         }
 
+        // Initialize timer state on page load
         window.addEventListener('load', loadTimerState);
+
+        // Save state before page unload
         window.addEventListener('beforeunload', saveTimerState);
 
+        // Save state periodically while running
         function startStateSaving() {
             setInterval(saveTimerState, 1000);
         }
@@ -629,11 +551,11 @@
         }
 
         function startTimer() {
-            initAudio();
+            initAudio(); // Initialize audio on first interaction
             
             if (!timerState.isPaused) {
-                timerState.currentPhase = 'left';
-                timerState.timeRemaining = timerState.leftTime.minutes * 60 + timerState.leftTime.seconds;
+                timerState.currentPhase = 'work';
+                timerState.timeRemaining = timerState.workTime.minutes * 60 + timerState.workTime.seconds;
                 timerState.totalTime = timerState.timeRemaining;
             }
             
@@ -694,7 +616,7 @@
             timerState.loopCount = 0;
             timerState.totalWorkMinutes = 0;
             timerState.totalBreakMinutes = 0;
-            timerState.currentPhase = 'left';
+            timerState.currentPhase = 'work';
             timerState.timeRemaining = 0;
             
             document.getElementById('startBtn').innerHTML = '▶️ Start';
@@ -742,7 +664,7 @@
                 clearInterval(beepInterval);
             }
             beepCount = 0;
-            createBeepSound();
+            createBeepSound(); // Initial beep
             
             beepInterval = setInterval(() => {
                 beepCount++;
@@ -772,46 +694,50 @@
             }, 3000);
         }
 
-        function handleWheel(event, side, unit) {
+        function handleWheel(event, phase, unit) {
             event.preventDefault();
             const change = event.deltaY < 0 ? 1 : -1;
-            adjustTime(side, unit, change);
+            adjustTime(phase, unit, change);
         }
 
-        function handleInputChange(event, side, unit) {
+        function handleInputChange(event, phase, unit) {
             const value = parseInt(event.target.value) || 0;
             const maxValue = unit === 'minutes' ? 99 : 59;
             const minValue = 0;
             
             if (value > maxValue) {
                 event.target.value = maxValue;
-                timerState[side + 'Time'][unit] = maxValue;
+                timerState[phase + 'Time'][unit] = maxValue;
             } else if (value < minValue) {
                 event.target.value = minValue;
-                timerState[side + 'Time'][unit] = minValue;
+                timerState[phase + 'Time'][unit] = minValue;
             } else {
-                timerState[side + 'Time'][unit] = value;
+                timerState[phase + 'Time'][unit] = value;
             }
             
             updateTimeDisplay();
             updateControlsState();
         }
 
-        function startAdjustTime(side, unit, change) {
+        function startAdjustTime(phase, unit, change) {
             if (timerState.isRunning) return;
             
-            adjustTime(side, unit, change);
+            // Initial adjustment
+            adjustTime(phase, unit, change);
             
+            // Start interval for continuous adjustment
             let currentSpeed = adjustSpeed;
             adjustInterval = setInterval(() => {
-                adjustTime(side, unit, change);
+                adjustTime(phase, unit, change);
+                // Increase speed up to a minimum
                 currentSpeed = Math.max(minAdjustSpeed, currentSpeed * speedIncreaseRate);
                 clearInterval(adjustInterval);
                 adjustInterval = setInterval(() => {
-                    adjustTime(side, unit, change);
+                    adjustTime(phase, unit, change);
                 }, currentSpeed);
             }, adjustSpeed);
         }
+
         function stopAdjustTime() {
             clearInterval(adjustInterval);
         }
