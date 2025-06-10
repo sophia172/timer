@@ -717,9 +717,14 @@
             updateControlsState();
             startStateSaving();
 
-            // Start background music if in work phase
+            // Start or resume music if in work phase
             if (timerState.currentPhase === 'work') {
-                toggleBackgroundMusic(true);
+                if (musicState.audio) {
+                    musicState.audio.play();
+                    musicState.isPlaying = true;
+                } else {
+                    toggleBackgroundMusic(true);
+                }
             }
         }
 
@@ -738,6 +743,11 @@
             updateTimerDisplay();
             updateControlsState();
             saveTimerState();
+            
+            // Pause music when timer is paused
+            if (musicState.isPlaying) {
+                musicState.audio.pause();
+            }
         }
 
         function stopTimer() {
@@ -755,6 +765,12 @@
             updateTimerDisplay();
             updateControlsState();
             saveTimerState();
+            
+            // Stop music when timer is stopped
+            if (musicState.isPlaying) {
+                musicState.audio.pause();
+                musicState.isPlaying = false;
+            }
         }
 
         function resetTimer() {
@@ -773,6 +789,14 @@
             generateDeviceId().then(deviceId => {
                 localStorage.removeItem(deviceId);
             });
+            
+            // Reset music to first track
+            if (musicState.audio) {
+                musicState.audio.pause();
+                musicState.isPlaying = false;
+                musicState.currentTrackIndex = 0;
+                musicState.audio.src = focusMusic.tracks[0];
+            }
         }
 
         function initAudio() {
