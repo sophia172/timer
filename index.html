@@ -555,7 +555,11 @@
             musicState.audio.src = focusMusic.tracks[index];
             
             if (musicState.isPlaying) {
-                musicState.audio.play();
+                musicState.audio.play().catch(error => {
+                    console.error('Error playing track:', error);
+                    // If there's an error playing the current track, try the next one
+                    playNextTrack();
+                });
             }
         }
 
@@ -569,7 +573,11 @@
             }
 
             if (shouldPlay && !musicState.isPlaying) {
-                musicState.audio.play();
+                musicState.audio.play().catch(error => {
+                    console.error('Error playing track:', error);
+                    // If there's an error playing the current track, try the next one
+                    playNextTrack();
+                });
                 musicState.isPlaying = true;
             } else if (!shouldPlay && musicState.isPlaying) {
                 musicState.audio.pause();
