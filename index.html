@@ -455,7 +455,8 @@
         </div>
 
         <div class="credits">
-            Developped by Ying Liu
+            Developped by Ying Liu<br>
+            <small>Free Music by chosic.com</small>
         </div>
     </div>
 
@@ -486,6 +487,94 @@
         const MAX_BEEPS = 10; // Number of beeps in the sequence
         const BEEP_INTERVAL = 500; // Time between beeps in ms
         let animationFrameId = null;
+
+        // Background Music State
+        const musicState = {
+            audio: null,
+            isPlaying: false,
+            currentTrackIndex: 0
+        };
+
+        // Focus Music Tracks
+        const focusMusic = {
+            tracks: [
+                "music/On-My-Way-Lofi-Study-Music(chosic.com).mp3",
+                "music/tokyo-music-walker-slowly-chosic.com_.mp3",
+                "music/silent-wood(chosic.com).mp3",
+                "music/Vibin-chosic.com_.mp3",
+                "music/Evening-Improvisation-with-Ethera(chosic.com).mp3",
+                "music/tokyo-music-walker-sunset-drive-chosic.com_.mp3",
+                "music/Sonder(chosic.com).mp3",
+                "music/Hope-Emotional-Soundtrack(chosic.com).mp3",
+                "music/Golden-Hour-chosic.com_.mp3",
+                "music/Transcendence-chosic.com_.mp3",
+                "music/Little-Wishes-chosic.com_.mp3",
+                "music/Colorful-Flowers(chosic.com).mp3",
+                "music/Morning-Routine-Lofi-Study-Music(chosic.com).mp3",
+                "music/Tokyo-Music-Walker-Brunch-For-Two-chosic.com_.mp3",
+                "music/When-I-Was-A-Boy(chosic.com).mp3",
+                "music/Arnor(chosic.com).mp3",
+                "music/Memories-of-Spring(chosic.com).mp3"
+            ],
+            credit: "Music by chosic.com"
+        };
+
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        function initBackgroundMusic() {
+            if (!musicState.audio) {
+                musicState.audio = new Audio();
+                musicState.audio.loop = false; // Disable loop since we'll handle track changes
+                musicState.audio.volume = 0.5;
+                
+                // Shuffle tracks
+                focusMusic.tracks = shuffleArray([...focusMusic.tracks]);
+                
+                // Set up event listener for track ending
+                musicState.audio.addEventListener('ended', () => {
+                    playNextTrack();
+                });
+                
+                // Load first track
+                loadTrack(0);
+            }
+        }
+
+        function loadTrack(index) {
+            if (index < 0) index = focusMusic.tracks.length - 1;
+            if (index >= focusMusic.tracks.length) index = 0;
+            
+            musicState.currentTrackIndex = index;
+            musicState.audio.src = focusMusic.tracks[index];
+            
+            if (musicState.isPlaying) {
+                musicState.audio.play();
+            }
+        }
+
+        function playNextTrack() {
+            loadTrack(musicState.currentTrackIndex + 1);
+        }
+
+        function toggleBackgroundMusic(shouldPlay) {
+            if (!musicState.audio) {
+                initBackgroundMusic();
+            }
+
+            if (shouldPlay && !musicState.isPlaying) {
+                musicState.audio.play();
+                musicState.isPlaying = true;
+            } else if (!shouldPlay && musicState.isPlaying) {
+                musicState.audio.pause();
+                musicState.isPlaying = false;
+            }
+        }
 
         // Save timer state to localStorage
         function saveTimerState() {
@@ -520,7 +609,10 @@
         }
 
         // Initialize timer state on page load
-        window.addEventListener('load', loadTimerState);
+        window.addEventListener('load', () => {
+            loadTimerState();
+            initBackgroundMusic();
+        });
 
         // Save state before page unload
         window.addEventListener('beforeunload', saveTimerState);
@@ -840,6 +932,15 @@
             
             timerState.totalTime = timerState.timeRemaining;
             updateTimerDisplay();
+            
+            // Stop music when switching to break
+            if (timerState.currentPhase === 'break') {
+                toggleBackgroundMusic(false);
+            }
+            // Start music when switching to work
+            else if (timerState.currentPhase === 'work') {
+                toggleBackgroundMusic(true);
+            }
         }
 
         function toggleTimer() {
