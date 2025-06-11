@@ -628,7 +628,11 @@
             generateDeviceId().then(deviceId => {
                 const stateToSave = {
                     ...timerState,
-                    lastUpdateTime: Date.now()
+                    lastUpdateTime: Date.now(),
+                    musicState: {
+                        currentTrackIndex: musicState.currentTrackIndex,
+                        isPlaying: musicState.isPlaying
+                    }
                 };
                 localStorage.setItem(deviceId, JSON.stringify(stateToSave));
             });
@@ -640,20 +644,75 @@
                 const savedState = localStorage.getItem(deviceId);
                 if (savedState) {
                     const parsedState = JSON.parse(savedState);
-                    const timeElapsed = Math.floor((Date.now() - parsedState.lastUpdateTime) / 1000);
+                    const currentTime = Date.now();
+                    const timeElapsed = Math.floor((currentTime - parsedState.lastUpdateTime) / 1000);
                     
                     // Update time remaining based on elapsed time
                     if (parsedState.isRunning && !parsedState.isPaused) {
-                        parsedState.timeRemaining = Math.max(0, parsedState.timeRemaining - timeElapsed);
+                        // Calculate remaining time after accounting for elapsed time
+                        let newTimeRemaining = Math.max(0, parsedState.timeRemaining - timeElapsed);
+                        
+                        // If time has run out, calculate how many complete cycles have passed
+                        if (newTimeRemaining === 0 && parsedState.timeRemaining > 0) {
+                            const totalCycleTime = (parsedState.workTime.minutes * 60 + parsedState.workTime.seconds) +
+                                                 (parsedState.breakTime.minutes * 60 + parsedState.breakTime.seconds);
+                            const elapsedCycles = Math.floor(timeElapsed / totalCycleTime);
+                            const remainingSeconds = timeElapsed % totalCycleTime;
+                            
+                            // Update loop count
+                            parsedState.loopCount += elapsedCycles;
+                            
+                            // Calculate which phase we should be in
+                            const isInWorkPhase = remainingSeconds < (parsedState.workTime.minutes * 60 + parsedState.workTime.seconds);
+                            parsedState.currentPhase = isInWorkPhase ? 'work' : 'break';
+                            
+                            // Calculate remaining time in current phase
+                            if (isInWorkPhase) {
+                                newTimeRemaining = (parsedState.workTime.minutes * 60 + parsedState.workTime.seconds) - remainingSeconds;
+                            } else {
+                                newTimeRemaining = (parsedState.breakTime.minutes * 60 + parsedState.breakTime.seconds) - 
+                                                 (remainingSeconds - (parsedState.workTime.minutes * 60 + parsedState.workTime.seconds));
+                            }
+                        }
+                        
+                        parsedState.timeRemaining = newTimeRemaining;
+                        parsedState.totalTime = parsedState.currentPhase === 'work' ? 
+                            (parsedState.workTime.minutes * 60 + parsedState.workTime.seconds) :
+                            (parsedState.breakTime.minutes * 60 + parsedState.breakTime.seconds);
                     }
                     
-                    timerState = parsedState;
+                    // Restore timer state
+                    timerState = {
+                        ...parsedState,
+                        lastUpdateTime: currentTime
+                    };
+                    
+                    // Restore music state if it exists
+                    if (parsedState.musicState) {
+                        musicState.currentTrackIndex = parsedState.musicState.currentTrackIndex;
+                        musicState.isPlaying = parsedState.musicState.isPlaying;
+                    }
+                    
                     updateTimeDisplay();
                     updateControlsState();
                     
                     // If timer was running, restart it
                     if (parsedState.isRunning && !parsedState.isPaused) {
                         startTimer();
+                    }
+                    
+                    // If music was playing, restore it
+                    if (musicState.isPlaying && timerState.currentPhase === 'work') {
+                        if (!musicState.audio) {
+                            initBackgroundMusic();
+                        }
+                        if (musicState.audio) {
+                            musicState.audio.currentTime = 0; // Reset to start of track
+                            musicState.audio.play().catch(error => {
+                                console.error('Error playing track:', error);
+                                playNextTrack();
+                            });
+                        }
                     }
                 }
             });
@@ -675,8 +734,13 @@
 
         // Save state periodically while running
         function startStateSaving() {
-            setInterval(() => {
-                saveTimerState();
+            // Save state every second while timer is running
+            const saveInterval = setInterval(() => {
+                if (timerState.isRunning) {
+                    saveTimerState();
+                } else {
+                    clearInterval(saveInterval);
+                }
             }, 1000);
         }
 
@@ -724,6 +788,7 @@
             updateTimerDisplay();
             updateControlsState();
             startStateSaving();
+            saveTimerState(); // Save initial state
 
             // Start or resume music if in work phase
             if (timerState.currentPhase === 'work') {
@@ -750,7 +815,7 @@
             
             updateTimerDisplay();
             updateControlsState();
-            saveTimerState();
+            saveTimerState(); // Save state when paused
             
             // Pause music when timer is paused
             if (musicState.isPlaying) {
@@ -1014,24 +1079,31 @@
                 timerState.currentPhase = 'break';
                 timerState.timeRemaining = timerState.breakTime.minutes * 60 + timerState.breakTime.seconds;
                 showNotification('🔔 Work Complete! Time for a break! ☕');
+                // Stop music when switching to break
+                if (musicState.audio) {
+                    musicState.audio.pause();
+                    musicState.isPlaying = false;
+                }
             } else {
                 timerState.currentPhase = 'work';
                 timerState.timeRemaining = timerState.workTime.minutes * 60 + timerState.workTime.seconds;
                 timerState.loopCount++;
                 showNotification('🔔 Break Complete! Back to work! 🔥');
+                // Start music when switching to work
+                if (!musicState.audio) {
+                    initBackgroundMusic();
+                }
+                if (musicState.audio) {
+                    musicState.audio.play().catch(error => {
+                        console.error('Error playing track:', error);
+                        playNextTrack();
+                    });
+                    musicState.isPlaying = true;
+                }
             }
             
             timerState.totalTime = timerState.timeRemaining;
             updateTimerDisplay();
-            
-            // Stop music when switching to break
-            if (timerState.currentPhase === 'break') {
-                toggleBackgroundMusic(false);
-            }
-            // Start music when switching to work
-            else if (timerState.currentPhase === 'work') {
-                toggleBackgroundMusic(true);
-            }
         }
 
         function toggleTimer() {
