@@ -435,7 +435,7 @@
             <div class="main-controls">
                 <button class="btn btn-primary" id="startBtn" onclick="toggleTimer()">▶️ Start</button>
                 <button class="btn btn-secondary" id="pauseBtn" onclick="pauseTimer()" style="display: none;">⏸️ Pause</button>
-                <button class="btn btn-danger" onclick="resetTimer()">🔄 Reset</button>
+                <button class="btn btn-danger" id="resetBtn" onclick="resetTimer()">🔄 Reset</button>
             </div>
         </div>
         
@@ -461,6 +461,9 @@
     </div>
 
     <script>
+        // Cache DOM elements to avoid repeated queries
+        let domElements = {};
+        
         let timerState = {
             isRunning: false,
             isPaused: false,
@@ -472,21 +475,22 @@
             totalBreakMinutes: 0,
             workTime: { minutes: 50, seconds: 0 },
             breakTime: { minutes: 10, seconds: 0 },
-            lastUpdateTime: Date.now() // Add timestamp for tracking
+            lastUpdateTime: Date.now()
         };
 
         let timerInterval;
         let audioContext;
         let isAudioEnabled = false;
         let adjustInterval;
-        let adjustSpeed = 100; // Initial speed in ms
-        let minAdjustSpeed = 50; // Fastest speed in ms
-        let speedIncreaseRate = 0.9; // How quickly the speed increases (multiplier)
+        let adjustSpeed = 100;
+        let minAdjustSpeed = 50;
+        let speedIncreaseRate = 0.9;
         let beepInterval;
         let beepCount = 0;
-        const MAX_BEEPS = 10; // Number of beeps in the sequence
-        const BEEP_INTERVAL = 500; // Time between beeps in ms
+        const MAX_BEEPS = 10;
+        const BEEP_INTERVAL = 500;
         let animationFrameId = null;
+        let saveStateInterval = null; // Track the save interval
 
         // Background Music State
         const musicState = {
@@ -515,9 +519,32 @@
                 "music/When-I-Was-A-Boy(chosic.com).mp3",
                 "music/Arnor(chosic.com).mp3",
                 "music/Memories-of-Spring(chosic.com).mp3"
-            ],
-            credit: "Music by chosic.com"
+            ]
         };
+
+        // Cache DOM elements for performance
+        function cacheDOMElements() {
+            domElements = {
+                startBtn: document.getElementById('startBtn'),
+                pauseBtn: document.getElementById('pauseBtn'),
+                resetBtn: document.getElementById('resetBtn'),
+                timerDisplay: document.getElementById('timerDisplay'),
+                phaseIndicator: document.getElementById('phaseIndicator'),
+                progressFill: document.getElementById('progressFill'),
+                loopCount: document.getElementById('loopCount'),
+                totalWorkTime: document.getElementById('totalWorkTime'),
+                totalBreakTime: document.getElementById('totalBreakTime'),
+                workMinutes: document.getElementById('workMinutes'),
+                workSeconds: document.getElementById('workSeconds'),
+                breakMinutes: document.getElementById('breakMinutes'),
+                breakSeconds: document.getElementById('breakSeconds'),
+                notification: document.getElementById('notification'),
+                // Cache control buttons
+                controls: ['workMinUp', 'workMinDown', 'workSecUp', 'workSecDown', 
+                          'breakMinUp', 'breakMinDown', 'breakSecUp', 'breakSecDown'].map(id => 
+                          document.getElementById(id)).filter(el => el)
+            };
+        }
 
         function shuffleArray(array) {
             for (let i = array.length - 1; i > 0; i--) {
@@ -528,42 +555,62 @@
         }
 
         function initBackgroundMusic() {
-            if (!musicState.audio) {
-                musicState.audio = new Audio();
-                musicState.audio.loop = false; // Disable loop since we'll handle track changes
-                musicState.audio.volume = 0.5;
-                
-                // Shuffle tracks
-                focusMusic.tracks = shuffleArray([...focusMusic.tracks]);
-                
-                // Set up event listener for track ending
-                musicState.audio.addEventListener('ended', () => {
-                    playNextTrack();
-                });
-                
-                // Load first track
-                loadTrack(0);
+            try {
+                if (!musicState.audio) {
+                    musicState.audio = new Audio();
+                    musicState.audio.loop = false;
+                    musicState.audio.volume = 0.5;
+                    
+                    // Set up event listener for track ending
+                    musicState.audio.addEventListener('ended', () => {
+                        console.log('Track ended, playing next...');
+                        playNextTrack();
+                    });
+                    
+                    // Add error handling
+                    musicState.audio.addEventListener('error', (e) => {
+                        console.error('Audio error:', e);
+                        playNextTrack();
+                    });
+                    
+                    // Load initial track
+                    loadTrack(musicState.currentTrackIndex);
+                }
+            } catch (error) {
+                console.error('Error initializing background music:', error);
             }
         }
 
         function loadTrack(index) {
-            if (index < 0) index = focusMusic.tracks.length - 1;
-            if (index >= focusMusic.tracks.length) index = 0;
-            
-            musicState.currentTrackIndex = index;
-            musicState.audio.src = focusMusic.tracks[index];
-            
-            if (musicState.isPlaying) {
-                musicState.audio.play().catch(error => {
-                    console.error('Error playing track:', error);
-                    // If there's an error playing the current track, try the next one
-                    playNextTrack();
-                });
+            try {
+                if (index < 0) index = focusMusic.tracks.length - 1;
+                if (index >= focusMusic.tracks.length) index = 0;
+                
+                musicState.currentTrackIndex = index;
+                if (musicState.audio) {
+                    musicState.audio.src = focusMusic.tracks[index];
+                    
+                    // Add event listener for when track metadata is loaded
+                    musicState.audio.addEventListener('loadedmetadata', () => {
+                        console.log(`Loaded track ${index}: ${focusMusic.tracks[index].split('/').pop()}`);
+                    }, { once: true });
+                    
+                    if (musicState.isPlaying) {
+                        musicState.audio.play().catch(error => {
+                            console.error('Error playing track:', error);
+                            playNextTrack();
+                        });
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading track:', error);
             }
         }
 
         function playNextTrack() {
-            loadTrack(musicState.currentTrackIndex + 1);
+            const nextIndex = (musicState.currentTrackIndex + 1) % focusMusic.tracks.length;
+            console.log(`Auto-advancing to track ${nextIndex}`);
+            loadTrack(nextIndex);
         }
 
         function toggleBackgroundMusic(shouldPlay) {
@@ -584,174 +631,261 @@
             }
         }
 
-        // Save timer state to localStorage
+        // Save timer state to localStorage (optimized)
         function saveTimerState() {
+            // Get current music playback position
+            const musicPlaybackTime = musicState.audio ? musicState.audio.currentTime : 0;
+            
             const stateToSave = {
                 ...timerState,
                 lastUpdateTime: Date.now(),
                 musicState: {
                     currentTrackIndex: musicState.currentTrackIndex,
-                    isPlaying: musicState.isPlaying
-                }
+                    isPlaying: musicState.isPlaying,
+                    playbackTime: musicPlaybackTime, // Save current playback position
+                    trackDuration: musicState.audio ? musicState.audio.duration : 0
+                },
+                version: '0.0.6' // Updated version for music enhancement
             };
             
             try {
                 localStorage.setItem('timer_state', JSON.stringify(stateToSave));
             } catch (error) {
-                console.error('Error saving state:', error);
+                // Handle quota exceeded
+                try {
+                    localStorage.clear();
+                    localStorage.setItem('timer_state', JSON.stringify(stateToSave));
+                } catch (e) {
+                    console.error('Storage failed');
+                }
             }
         }
 
-        // Load timer state from localStorage
+        // Load timer state from localStorage (optimized)
         function loadTimerState() {
             try {
                 const savedState = localStorage.getItem('timer_state');
-                if (savedState) {
-                    const parsedState = JSON.parse(savedState);
-                    const currentTime = Date.now();
-                    const timeElapsed = Math.floor((currentTime - parsedState.lastUpdateTime) / 1000);
+                if (!savedState) return;
+                
+                const parsedState = JSON.parse(savedState);
+                
+                // Check version compatibility
+                if (!parsedState.version || !['0.0.3', '0.0.4', '0.0.5', '0.0.6'].includes(parsedState.version)) {
+                    localStorage.removeItem('timer_state');
+                    return;
+                }
+                
+                const currentTime = Date.now();
+                const timeElapsed = Math.floor((currentTime - parsedState.lastUpdateTime) / 1000);
+                
+                // Clear old state (24+ hours)
+                if (timeElapsed > 86400) {
+                    localStorage.removeItem('timer_state');
+                    return;
+                }
+                
+                // Calculate time progression
+                if (parsedState.isRunning && !parsedState.isPaused) {
+                    let newTimeRemaining = Math.max(0, parsedState.timeRemaining - timeElapsed);
                     
-                    // Update time remaining based on elapsed time
-                    if (parsedState.isRunning && !parsedState.isPaused) {
-                        // Calculate remaining time after accounting for elapsed time
-                        let newTimeRemaining = Math.max(0, parsedState.timeRemaining - timeElapsed);
+                    if (newTimeRemaining === 0 && parsedState.timeRemaining > 0) {
+                        const workDuration = parsedState.workTime.minutes * 60 + parsedState.workTime.seconds;
+                        const breakDuration = parsedState.breakTime.minutes * 60 + parsedState.breakTime.seconds;
+                        const totalCycleTime = workDuration + breakDuration;
+                        const elapsedCycles = Math.floor(timeElapsed / totalCycleTime);
+                        const remainingSeconds = timeElapsed % totalCycleTime;
                         
-                        // If time has run out, calculate how many complete cycles have passed
-                        if (newTimeRemaining === 0 && parsedState.timeRemaining > 0) {
-                            const totalCycleTime = (parsedState.workTime.minutes * 60 + parsedState.workTime.seconds) +
-                                                 (parsedState.breakTime.minutes * 60 + parsedState.breakTime.seconds);
-                            const elapsedCycles = Math.floor(timeElapsed / totalCycleTime);
-                            const remainingSeconds = timeElapsed % totalCycleTime;
-                            
-                            // Update loop count
-                            parsedState.loopCount += elapsedCycles;
-                            
-                            // Calculate which phase we should be in
-                            const isInWorkPhase = remainingSeconds < (parsedState.workTime.minutes * 60 + parsedState.workTime.seconds);
-                            parsedState.currentPhase = isInWorkPhase ? 'work' : 'break';
-                            
-                            // Calculate remaining time in current phase
-                            if (isInWorkPhase) {
-                                newTimeRemaining = (parsedState.workTime.minutes * 60 + parsedState.workTime.seconds) - remainingSeconds;
+                        parsedState.loopCount += elapsedCycles;
+                        
+                        const isInWorkPhase = remainingSeconds < workDuration;
+                        parsedState.currentPhase = isInWorkPhase ? 'work' : 'break';
+                        
+                        newTimeRemaining = isInWorkPhase ? 
+                            workDuration - remainingSeconds :
+                            breakDuration - (remainingSeconds - workDuration);
+                    }
+                    
+                    parsedState.timeRemaining = newTimeRemaining;
+                    parsedState.totalTime = parsedState.currentPhase === 'work' ? 
+                        (parsedState.workTime.minutes * 60 + parsedState.workTime.seconds) :
+                        (parsedState.breakTime.minutes * 60 + parsedState.breakTime.seconds);
+                }
+                
+                // Restore state
+                timerState = { ...parsedState, lastUpdateTime: currentTime };
+                
+                // Enhanced music state restoration
+                if (parsedState.musicState) {
+                    const savedMusic = parsedState.musicState;
+                    musicState.currentTrackIndex = savedMusic.currentTrackIndex;
+                    musicState.isPlaying = savedMusic.isPlaying;
+                    
+                    // Determine music resumption strategy
+                    if (savedMusic.isPlaying && timerState.currentPhase === 'work') {
+                        // Check if we should advance to next track or resume current one
+                        const shouldAdvanceTrack = timeElapsed > 30; // If away for 30+ seconds, advance track
+                        
+                        if (shouldAdvanceTrack) {
+                            // Advance to next track for variety
+                            musicState.currentTrackIndex = (savedMusic.currentTrackIndex + 1) % focusMusic.tracks.length;
+                            console.log(`Advanced to next track: ${musicState.currentTrackIndex}`);
+                        } else if (savedMusic.playbackTime && savedMusic.trackDuration) {
+                            // Resume from saved position if we have playback data
+                            const remainingTrackTime = savedMusic.trackDuration - savedMusic.playbackTime;
+                            if (remainingTrackTime > 10) { // If more than 10 seconds left, resume
+                                console.log(`Resuming track ${musicState.currentTrackIndex} from ${savedMusic.playbackTime}s`);
                             } else {
-                                newTimeRemaining = (parsedState.breakTime.minutes * 60 + parsedState.breakTime.seconds) - 
-                                                 (remainingSeconds - (parsedState.workTime.minutes * 60 + parsedState.workTime.seconds));
+                                // Track was almost finished, go to next
+                                musicState.currentTrackIndex = (savedMusic.currentTrackIndex + 1) % focusMusic.tracks.length;
+                                console.log(`Track was near end, advanced to: ${musicState.currentTrackIndex}`);
                             }
                         }
                         
-                        parsedState.timeRemaining = newTimeRemaining;
-                        parsedState.totalTime = parsedState.currentPhase === 'work' ? 
-                            (parsedState.workTime.minutes * 60 + parsedState.workTime.seconds) :
-                            (parsedState.breakTime.minutes * 60 + parsedState.breakTime.seconds);
-                    }
-                    
-                    // Restore timer state
-                    timerState = {
-                        ...parsedState,
-                        lastUpdateTime: currentTime
-                    };
-                    
-                    // Restore music state if it exists
-                    if (parsedState.musicState) {
-                        musicState.currentTrackIndex = parsedState.musicState.currentTrackIndex;
-                        musicState.isPlaying = parsedState.musicState.isPlaying;
-                    }
-                    
-                    updateTimeDisplay();
-                    updateControlsState();
-                    
-                    // If timer was running, restart it
-                    if (parsedState.isRunning && !parsedState.isPaused) {
-                        startTimer();
-                    }
-                    
-                    // If music was playing, restore it
-                    if (musicState.isPlaying && timerState.currentPhase === 'work') {
-                        if (!musicState.audio) {
-                            initBackgroundMusic();
-                        }
-                        if (musicState.audio) {
-                            musicState.audio.currentTime = 0; // Reset to start of track
-                            musicState.audio.play().catch(error => {
-                                console.error('Error playing track:', error);
-                                playNextTrack();
-                            });
-                        }
+                        // Initialize music with the determined track
+                        setTimeout(() => {
+                            if (!musicState.audio) {
+                                initBackgroundMusic();
+                            }
+                            if (musicState.audio && timerState.isRunning) {
+                                loadTrack(musicState.currentTrackIndex);
+                                
+                                // Set playback position if resuming same track and not advancing
+                                if (!shouldAdvanceTrack && savedMusic.playbackTime && 
+                                    savedMusic.currentTrackIndex === musicState.currentTrackIndex) {
+                                    musicState.audio.currentTime = savedMusic.playbackTime;
+                                }
+                                
+                                musicState.audio.play().catch(() => {
+                                    console.log('Music will start on user interaction');
+                                });
+                                musicState.isPlaying = true;
+                            }
+                        }, 200);
                     }
                 }
+                
+                // Update UI
+                updateTimeDisplay();
+                updateControlsState();
+                updateTimerDisplay();
+                
+                // Restart timer if it was running
+                if (parsedState.isRunning && !parsedState.isPaused) {
+                    timerState.isRunning = false;
+                    setTimeout(() => startTimer(true), 50);
+                }
+                
             } catch (error) {
-                console.error('Error loading state:', error);
+                localStorage.removeItem('timer_state');
             }
         }
 
-        // Initialize everything when the page loads
+        // Initialize everything when the page loads (optimized)
         window.addEventListener('load', () => {
-            // Load timer state first
-            loadTimerState();
-            
-            // Then initialize background music
-            initBackgroundMusic();
-            
-            // Reattach event handlers
-            document.getElementById('startBtn').onclick = toggleTimer;
-            document.getElementById('pauseBtn').onclick = pauseTimer;
-            document.getElementById('resetBtn').onclick = resetTimer;
-            
-            // Reattach wheel event handlers
-            document.getElementById('workMinutes').onwheel = (e) => handleWheel(e, 'work', 'minutes');
-            document.getElementById('workSeconds').onwheel = (e) => handleWheel(e, 'work', 'seconds');
-            document.getElementById('breakMinutes').onwheel = (e) => handleWheel(e, 'break', 'minutes');
-            document.getElementById('breakSeconds').onwheel = (e) => handleWheel(e, 'break', 'seconds');
-            
-            // Reattach input change handlers
-            document.getElementById('workMinutes').onchange = (e) => handleInputChange(e, 'work', 'minutes');
-            document.getElementById('workSeconds').onchange = (e) => handleInputChange(e, 'work', 'seconds');
-            document.getElementById('breakMinutes').onchange = (e) => handleInputChange(e, 'break', 'minutes');
-            document.getElementById('breakSeconds').onchange = (e) => handleInputChange(e, 'break', 'seconds');
-            
-            // Reattach wheel button handlers
-            const wheelButtons = {
-                'workMinUp': ['work', 'minutes', 1],
-                'workMinDown': ['work', 'minutes', -1],
-                'workSecUp': ['work', 'seconds', 1],
-                'workSecDown': ['work', 'seconds', -1],
-                'breakMinUp': ['break', 'minutes', 1],
-                'breakMinDown': ['break', 'minutes', -1],
-                'breakSecUp': ['break', 'seconds', 1],
-                'breakSecDown': ['break', 'seconds', -1]
-            };
-            
-            Object.entries(wheelButtons).forEach(([id, [phase, unit, change]]) => {
-                const button = document.getElementById(id);
-                if (button) {
-                    button.onmousedown = () => startAdjustTime(phase, unit, change);
-                    button.onmouseup = stopAdjustTime;
-                    button.onmouseleave = stopAdjustTime;
+            try {
+                // Clean up any existing resources
+                if (timerInterval) clearInterval(timerInterval);
+                if (beepInterval) clearInterval(beepInterval);
+                if (animationFrameId) cancelAnimationFrame(animationFrameId);
+                if (saveStateInterval) clearInterval(saveStateInterval);
+                
+                if (audioContext) {
+                    audioContext.close().catch(() => {});
+                    audioContext = null;
                 }
-            });
-            
-            // Update initial display
-            updateTimeDisplay();
-            updateControlsState();
-            updateTimerDisplay();
+                
+                if (musicState.audio) {
+                    musicState.audio.pause();
+                    musicState.audio = null;
+                }
+                musicState.isPlaying = false;
+                musicState.currentTrackIndex = 0;
+                
+                // Cache DOM elements
+                cacheDOMElements();
+                
+                // Load saved state
+                loadTimerState();
+                
+                // Initialize music
+                initBackgroundMusic();
+                
+                // Attach event handlers using cached elements
+                if (domElements.startBtn) domElements.startBtn.onclick = toggleTimer;
+                if (domElements.pauseBtn) domElements.pauseBtn.onclick = pauseTimer;
+                if (domElements.resetBtn) domElements.resetBtn.onclick = resetTimer;
+                
+                // Attach wheel and input handlers
+                const wheelHandlers = [
+                    [domElements.workMinutes, 'work', 'minutes'],
+                    [domElements.workSeconds, 'work', 'seconds'],
+                    [domElements.breakMinutes, 'break', 'minutes'],
+                    [domElements.breakSeconds, 'break', 'seconds']
+                ];
+                
+                wheelHandlers.forEach(([element, phase, unit]) => {
+                    if (element) {
+                        element.onwheel = (e) => handleWheel(e, phase, unit);
+                        element.onchange = (e) => handleInputChange(e, phase, unit);
+                    }
+                });
+                
+                // Attach wheel button handlers
+                const wheelButtons = {
+                    'workMinUp': ['work', 'minutes', 1],
+                    'workMinDown': ['work', 'minutes', -1],
+                    'workSecUp': ['work', 'seconds', 1],
+                    'workSecDown': ['work', 'seconds', -1],
+                    'breakMinUp': ['break', 'minutes', 1],
+                    'breakMinDown': ['break', 'minutes', -1],
+                    'breakSecUp': ['break', 'seconds', 1],
+                    'breakSecDown': ['break', 'seconds', -1]
+                };
+                
+                Object.entries(wheelButtons).forEach(([id, [phase, unit, change]]) => {
+                    const button = document.getElementById(id);
+                    if (button) {
+                        button.onmousedown = () => startAdjustTime(phase, unit, change);
+                        button.onmouseup = stopAdjustTime;
+                        button.onmouseleave = stopAdjustTime;
+                    }
+                });
+                
+                // Update display
+                updateTimeDisplay();
+                updateControlsState();
+                updateTimerDisplay();
+                
+                // Start optimized state saving
+                saveStateInterval = setInterval(() => {
+                    if (timerState.isRunning || timerState.isPaused) {
+                        saveTimerState();
+                    }
+                }, 10000); // Save every 10 seconds instead of 5
+                
+            } catch (error) {
+                // Fallback to default state
+                timerState = {
+                    isRunning: false,
+                    isPaused: false,
+                    currentPhase: 'work',
+                    timeRemaining: 0,
+                    totalTime: 0,
+                    loopCount: 0,
+                    totalWorkMinutes: 0,
+                    totalBreakMinutes: 0,
+                    workTime: { minutes: 50, seconds: 0 },
+                    breakTime: { minutes: 10, seconds: 0 },
+                    lastUpdateTime: Date.now()
+                };
+                updateTimeDisplay();
+                updateControlsState();
+                updateTimerDisplay();
+            }
         });
 
         // Save state before page unload
-        window.addEventListener('beforeunload', () => {
-            saveTimerState();
-        });
-
-        // Save state periodically while running
-        function startStateSaving() {
-            // Save state every second while timer is running
-            const saveInterval = setInterval(() => {
-                if (timerState.isRunning) {
-                    saveTimerState();
-                } else {
-                    clearInterval(saveInterval);
-                }
-            }, 1000);
-        }
+        window.addEventListener('beforeunload', saveTimerState);
 
         function updateTimer() {
             if (!timerState.isRunning || timerState.isPaused) return;
@@ -773,36 +907,38 @@
             animationFrameId = requestAnimationFrame(updateTimer);
         }
 
-        function startTimer() {
-            initAudio(); // Initialize audio on first interaction
+        function startTimer(isResuming = false) {
+            initAudio();
             
-            if (!timerState.isPaused) {
+            if (!timerState.isPaused && !isResuming) {
                 timerState.currentPhase = 'work';
                 timerState.timeRemaining = timerState.workTime.minutes * 60 + timerState.workTime.seconds;
                 timerState.totalTime = timerState.timeRemaining;
+            }
+            
+            if (timerState.totalTime === 0 || !isResuming) {
+                timerState.totalTime = timerState.currentPhase === 'work' ? 
+                    (timerState.workTime.minutes * 60 + timerState.workTime.seconds) :
+                    (timerState.breakTime.minutes * 60 + timerState.breakTime.seconds);
             }
             
             timerState.isRunning = true;
             timerState.isPaused = false;
             timerState.lastUpdateTime = Date.now();
             
-            document.getElementById('startBtn').style.display = 'none';
-            document.getElementById('pauseBtn').style.display = 'inline-block';
+            if (domElements.startBtn) domElements.startBtn.style.display = 'none';
+            if (domElements.pauseBtn) domElements.pauseBtn.style.display = 'inline-block';
             
-            if (animationFrameId) {
-                cancelAnimationFrame(animationFrameId);
-            }
+            if (animationFrameId) cancelAnimationFrame(animationFrameId);
             animationFrameId = requestAnimationFrame(updateTimer);
             
             updateTimerDisplay();
             updateControlsState();
-            startStateSaving();
-            saveTimerState(); // Save initial state
+            saveTimerState();
 
-            // Start or resume music if in work phase
             if (timerState.currentPhase === 'work') {
                 if (musicState.audio) {
-                    musicState.audio.play();
+                    musicState.audio.play().catch(() => {});
                     musicState.isPlaying = true;
                 } else {
                     toggleBackgroundMusic(true);
@@ -818,40 +954,18 @@
                 animationFrameId = null;
             }
             
-            document.getElementById('startBtn').style.display = 'inline-block';
-            document.getElementById('pauseBtn').style.display = 'none';
-            document.getElementById('startBtn').innerHTML = '▶️ Resume';
-            
-            updateTimerDisplay();
-            updateControlsState();
-            saveTimerState(); // Save state when paused
-            
-            // Pause music when timer is paused
-            if (musicState.isPlaying) {
-                musicState.audio.pause();
+            if (domElements.startBtn) {
+                domElements.startBtn.style.display = 'inline-block';
+                domElements.startBtn.innerHTML = '▶️ Resume';
             }
-        }
-
-        function stopTimer() {
-            timerState.isRunning = false;
-            timerState.isPaused = false;
-            if (animationFrameId) {
-                cancelAnimationFrame(animationFrameId);
-                animationFrameId = null;
-            }
-            
-            document.getElementById('startBtn').style.display = 'inline-block';
-            document.getElementById('pauseBtn').style.display = 'none';
-            document.getElementById('startBtn').innerHTML = '▶️ Start';
+            if (domElements.pauseBtn) domElements.pauseBtn.style.display = 'none';
             
             updateTimerDisplay();
             updateControlsState();
             saveTimerState();
             
-            // Stop music when timer is stopped
-            if (musicState.isPlaying) {
+            if (musicState.isPlaying && musicState.audio) {
                 musicState.audio.pause();
-                musicState.isPlaying = false;
             }
         }
 
@@ -864,13 +978,11 @@
             timerState.currentPhase = 'work';
             timerState.timeRemaining = 0;
             
-            document.getElementById('startBtn').innerHTML = '▶️ Start';
+            if (domElements.startBtn) domElements.startBtn.innerHTML = '▶️ Start';
             updateTimerDisplay();
             
-            // Remove timer state from localStorage
             localStorage.removeItem('timer_state');
             
-            // Reset music to first track
             if (musicState.audio) {
                 musicState.audio.pause();
                 musicState.isPlaying = false;
@@ -940,13 +1052,10 @@
         }
 
         function showNotification(message) {
-            const notification = document.getElementById('notification');
-            notification.textContent = message;
-            notification.classList.add('show');
-            
-            setTimeout(() => {
-                notification.classList.remove('show');
-            }, 3000);
+            if (!domElements.notification) return;
+            domElements.notification.textContent = message;
+            domElements.notification.classList.add('show');
+            setTimeout(() => domElements.notification.classList.remove('show'), 3000);
         }
 
         function handleWheel(event, phase, unit) {
@@ -1014,19 +1123,16 @@
         }
 
         function updateTimeDisplay() {
-            document.getElementById('workMinutes').value = String(timerState.workTime.minutes).padStart(2, '0');
-            document.getElementById('workSeconds').value = String(timerState.workTime.seconds).padStart(2, '0');
-            document.getElementById('breakMinutes').value = String(timerState.breakTime.minutes).padStart(2, '0');
-            document.getElementById('breakSeconds').value = String(timerState.breakTime.seconds).padStart(2, '0');
+            if (domElements.workMinutes) domElements.workMinutes.value = String(timerState.workTime.minutes).padStart(2, '0');
+            if (domElements.workSeconds) domElements.workSeconds.value = String(timerState.workTime.seconds).padStart(2, '0');
+            if (domElements.breakMinutes) domElements.breakMinutes.value = String(timerState.breakTime.minutes).padStart(2, '0');
+            if (domElements.breakSeconds) domElements.breakSeconds.value = String(timerState.breakTime.seconds).padStart(2, '0');
         }
 
         function updateControlsState() {
             const isRunning = timerState.isRunning;
-            const controls = ['workMinUp', 'workMinDown', 'workSecUp', 'workSecDown', 
-                            'breakMinUp', 'breakMinDown', 'breakSecUp', 'breakSecDown'];
-            
-            controls.forEach(id => {
-                document.getElementById(id).disabled = isRunning;
+            domElements.controls.forEach(element => {
+                if (element) element.disabled = isRunning;
             });
         }
 
@@ -1037,35 +1143,33 @@
         }
 
         function updateTimerDisplay() {
-            const display = document.getElementById('timerDisplay');
-            const indicator = document.getElementById('phaseIndicator');
-            const progressFill = document.getElementById('progressFill');
+            if (!domElements.timerDisplay) return;
             
-            display.textContent = formatTime(timerState.timeRemaining);
+            domElements.timerDisplay.textContent = formatTime(timerState.timeRemaining);
             
             if (timerState.isRunning) {
                 if (timerState.currentPhase === 'work') {
-                    indicator.innerHTML = '🔥 Work Time';
-                    display.className = 'timer-display work';
+                    if (domElements.phaseIndicator) domElements.phaseIndicator.innerHTML = '🔥 Work Time';
+                    domElements.timerDisplay.className = 'timer-display work';
                 } else {
-                    indicator.innerHTML = '☕ Break Time';
-                    display.className = 'timer-display break';
+                    if (domElements.phaseIndicator) domElements.phaseIndicator.innerHTML = '☕ Break Time';
+                    domElements.timerDisplay.className = 'timer-display break';
                 }
                 
                 const progress = ((timerState.totalTime - timerState.timeRemaining) / timerState.totalTime) * 100;
-                progressFill.style.width = `${Math.min(100, Math.max(0, progress))}%`;
+                if (domElements.progressFill) domElements.progressFill.style.width = `${Math.min(100, Math.max(0, progress))}%`;
             } else {
-                indicator.innerHTML = timerState.isPaused ? '⏸️ Paused' : '▶️ Ready to Start';
-                display.className = 'timer-display';
-                if (!timerState.isPaused) {
-                    progressFill.style.width = '0%';
+                if (domElements.phaseIndicator) domElements.phaseIndicator.innerHTML = timerState.isPaused ? '⏸️ Paused' : '▶️ Ready to Start';
+                domElements.timerDisplay.className = 'timer-display';
+                if (!timerState.isPaused && domElements.progressFill) {
+                    domElements.progressFill.style.width = '0%';
                 }
             }
 
-            // Update statistics
-            document.getElementById('loopCount').textContent = timerState.loopCount;
-            document.getElementById('totalWorkTime').textContent = timerState.totalWorkMinutes + 'm';
-            document.getElementById('totalBreakTime').textContent = timerState.totalBreakMinutes + 'm';
+            // Update statistics using cached elements
+            if (domElements.loopCount) domElements.loopCount.textContent = timerState.loopCount;
+            if (domElements.totalWorkTime) domElements.totalWorkTime.textContent = timerState.totalWorkMinutes + 'm';
+            if (domElements.totalBreakTime) domElements.totalBreakTime.textContent = timerState.totalBreakMinutes + 'm';
         }
 
         function switchPhase() {
