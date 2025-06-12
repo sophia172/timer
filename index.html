@@ -397,7 +397,7 @@
                             <button class="wheel-btn" onmousedown="startAdjustTime('work', 'minutes', -1)" onmouseup="stopAdjustTime()" onmouseleave="stopAdjustTime()" id="workMinDown">-</button>
                         </div>
                         <div class="wheel" onwheel="handleWheel(event, 'work', 'minutes')">
-                            <input type="number" min="0" max="99" value="50" onchange="handleInputChange(event, 'work', 'minutes')" id="workMinutes">
+                            <input type="number" min="0" max="99" value="25" onchange="handleInputChange(event, 'work', 'minutes')" id="workMinutes">
                         </div>
                         <span style="font-size: 1.5rem; font-weight: bold;">:</span>
                         <div class="wheel" onwheel="handleWheel(event, 'work', 'seconds')">
@@ -755,10 +755,9 @@
                                     musicState.audio.currentTime = savedMusic.playbackTime;
                                 }
                                 
-                                musicState.audio.play().catch(() => {
-                                    console.log('Music will start on user interaction');
-                                });
-                                musicState.isPlaying = true;
+                                // Don't auto-play on page load, wait for user interaction
+                                musicState.isPlaying = false;
+                                console.log('Music will start on user interaction');
                             }
                         }, 200);
                     }
@@ -772,7 +771,7 @@
                 // Restart timer if it was running
                 if (parsedState.isRunning && !parsedState.isPaused) {
                     timerState.isRunning = false;
-                    setTimeout(() => startTimer(true), 50);
+                    setTimeout(() => startTimer(true), 25);
                 }
                 
             } catch (error) {
@@ -789,11 +788,13 @@
                 if (animationFrameId) cancelAnimationFrame(animationFrameId);
                 if (saveStateInterval) clearInterval(saveStateInterval);
                 
+                // Reset audio context
                 if (audioContext) {
                     audioContext.close().catch(() => {});
                     audioContext = null;
                 }
                 
+                // Reset music state
                 if (musicState.audio) {
                     musicState.audio.pause();
                     musicState.audio = null;
@@ -807,13 +808,31 @@
                 // Load saved state
                 loadTimerState();
                 
-                // Initialize music
+                // Initialize audio context
+                initAudio();
+                
+                // Initialize music (but don't play yet)
                 initBackgroundMusic();
                 
                 // Attach event handlers using cached elements
                 if (domElements.startBtn) domElements.startBtn.onclick = toggleTimer;
                 if (domElements.pauseBtn) domElements.pauseBtn.onclick = pauseTimer;
                 if (domElements.resetBtn) domElements.resetBtn.onclick = resetTimer;
+                
+                // Add user interaction listener for audio
+                document.addEventListener('click', function initAudioOnInteraction() {
+                    if (audioContext && audioContext.state === 'suspended') {
+                        audioContext.resume().then(() => {
+                            isAudioEnabled = true;
+                            if (timerState.isRunning && timerState.currentPhase === 'work') {
+                                toggleBackgroundMusic(true);
+                            }
+                        }).catch(() => {
+                            console.log('Audio context resume failed');
+                        });
+                    }
+                    document.removeEventListener('click', initAudioOnInteraction);
+                }, { once: true });
                 
                 // Attach wheel and input handlers
                 const wheelHandlers = [
@@ -874,8 +893,8 @@
                     loopCount: 0,
                     totalWorkMinutes: 0,
                     totalBreakMinutes: 0,
-                    workTime: { minutes: 50, seconds: 0 },
-                    breakTime: { minutes: 10, seconds: 0 },
+                    workTime: { minutes: 25, seconds: 0 },
+                    breakTime: { minutes: 5, seconds: 0 },
                     lastUpdateTime: Date.now()
                 };
                 updateTimeDisplay();
@@ -969,37 +988,83 @@
             }
         }
 
+        function stopTimer() {
+            timerState.isRunning = false;
+            timerState.isPaused = false;
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+                animationFrameId = null;
+            }
+            
+            if (domElements.startBtn) {
+                domElements.startBtn.style.display = 'inline-block';
+                domElements.startBtn.innerHTML = '▶️ Start';
+            }
+            if (domElements.pauseBtn) domElements.pauseBtn.style.display = 'none';
+            
+            updateTimerDisplay();
+            updateControlsState();
+        }
+
         function resetTimer() {
+            // Stop all running timers and animations
             stopTimer();
             stopBeepSequence();
-            timerState.loopCount = 0;
-            timerState.totalWorkMinutes = 0;
-            timerState.totalBreakMinutes = 0;
-            timerState.currentPhase = 'work';
-            timerState.timeRemaining = 0;
             
-            if (domElements.startBtn) domElements.startBtn.innerHTML = '▶️ Start';
-            updateTimerDisplay();
+            // Reset timer state
+            timerState = {
+                isRunning: false,
+                isPaused: false,
+                currentPhase: 'work',
+                timeRemaining: 0,
+                totalTime: 0,
+                loopCount: 0,
+                totalWorkMinutes: 0,
+                totalBreakMinutes: 0,
+                workTime: { minutes: 25, seconds: 0 },
+                breakTime: { minutes: 5, seconds: 0 },
+                lastUpdateTime: Date.now()
+            };
             
-            localStorage.removeItem('timer_state');
+            // Reset UI
+            if (domElements.startBtn) {
+                domElements.startBtn.style.display = 'inline-block';
+                domElements.startBtn.innerHTML = '▶️ Start';
+            }
+            if (domElements.pauseBtn) domElements.pauseBtn.style.display = 'none';
             
+            // Reset music
             if (musicState.audio) {
                 musicState.audio.pause();
                 musicState.isPlaying = false;
                 musicState.currentTrackIndex = 0;
                 musicState.audio.src = focusMusic.tracks[0];
             }
+            
+            // Clear saved state
+            localStorage.removeItem('timer_state');
+            
+            // Update displays
+            updateTimeDisplay();
+            updateControlsState();
+            updateTimerDisplay();
         }
 
         function initAudio() {
+            try {
             if (!audioContext) {
                 audioContext = new (window.AudioContext || window.webkitAudioContext)();
                 isAudioEnabled = true;
             }
             if (audioContext.state === 'suspended') {
-                audioContext.resume().then(() => {
-                    isAudioEnabled = true;
+                    audioContext.resume().catch(() => {
+                        console.log('Audio context resume failed');
+                        isAudioEnabled = false;
                 });
+                }
+            } catch (error) {
+                console.error('Audio context initialization failed:', error);
+                isAudioEnabled = false;
             }
         }
 
